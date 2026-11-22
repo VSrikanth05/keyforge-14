@@ -1,0 +1,3384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KEYFORGE 14 — Noir Gold Musical Keyboard Game</title>
+  <style>
+    :root {
+      --bg-void: #050608;
+      --panel-bg: rgba(9, 10, 14, 0.82);
+      --panel-border: rgba(218, 177, 86, 0.24);
+      --text-primary: #f6f2e9;
+      --text-muted: #8b867b;
+      --gold: #eab64d;
+      --gold-light: #fae09e;
+      --cyan: #22d3ee;
+      --emerald: #10b981;
+      --violet: #c084fc;
+      --rose: #fb7185;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Aurum Overdrive Edge Vignette */
+    #overdrive-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+      opacity: 0;
+      box-shadow:
+        inset 0 0 110px rgba(234, 182, 77, 0.34),
+        inset 0 0 42px rgba(34, 211, 238, 0.22);
+      transition: opacity 0.35s ease;
+    }
+    #overdrive-vignette.active { opacity: 1; }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow:
+        0 18px 44px rgba(0, 0, 0, 0.70),
+        inset 0 1px 0 rgba(250, 224, 158, 0.10);
+      border-radius: 14px;
+      pointer-events: auto;
+    }
+
+    .hud-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* =======================================================================
+       TOP-LEFT: Brand, 3-Mode Gameplay Switcher & Build Progress
+       ======================================================================= */
+    #hud-left {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      padding: 12px 15px;
+      min-width: 268px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: linear-gradient(120deg, #fff6db 0%, #eab64d 55%, #c58f2b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fef08a, #d99a26);
+      box-shadow: 0 0 12px rgba(234, 182, 77, 0.9);
+      flex-shrink: 0;
+    }
+
+    .badge-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .rank-pill {
+      font-size: 11px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(234, 182, 77, 0.24), rgba(184, 132, 36, 0.16));
+      border: 1px solid rgba(250, 224, 158, 0.45);
+      color: var(--gold-light);
+    }
+
+    .counter-pill {
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #d6cfc2;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      padding: 2px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    /* 3-Mode Gameplay Switcher */
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 3px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(218, 177, 86, 0.14);
+    }
+
+    .mode-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 5px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, rgba(234, 182, 77, 0.30), rgba(184, 132, 36, 0.20));
+      color: #fff8e7;
+      box-shadow: inset 0 0 0 1px rgba(250, 224, 158, 0.48), 0 2px 12px rgba(234, 182, 77, 0.20);
+    }
+
+    .mode-btn:hover:not(.active) {
+      color: #e2dcd0;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #b88424, #eab64d, #22d3ee, #c084fc);
+      box-shadow: 0 0 12px rgba(234, 182, 77, 0.55);
+      transition: width 0.28s ease;
+    }
+
+    .hud-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+
+    .meta-highlight {
+      color: var(--gold);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* =======================================================================
+       TOP-CENTER: Live Gameplay Score, Combo, Aurum Fever & Audio Visualizer
+       ======================================================================= */
+    #hud-center {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 9px 18px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.16s ease;
+    }
+
+    #hud-center.overdrive {
+      border-color: rgba(250, 224, 158, 0.72);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.72), 0 0 28px rgba(234, 182, 77, 0.34);
+    }
+
+    #hud-center.shake {
+      animation: hudShake 0.30s ease;
+      border-color: rgba(251, 113, 133, 0.7);
+    }
+
+    @keyframes hudShake {
+      0%, 100% { transform: translateX(-50%); }
+      25% { transform: translateX(calc(-50% - 6px)); }
+      55% { transform: translateX(calc(-50% + 6px)); }
+    }
+
+    .stat-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 62px;
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1px;
+    }
+
+    .stat-num {
+      font-size: 18px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #fff8e7;
+      line-height: 1.1;
+    }
+
+    .stat-num.gold-num {
+      min-width: 84px;
+      text-align: center;
+      background: linear-gradient(180deg, #fff9e6 0%, #eab64d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .stat-sep {
+      width: 1px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.09);
+    }
+
+    .combo-row {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      transition: transform 0.12s cubic-bezier(0.22, 1.5, 0.36, 1);
+    }
+
+    .combo-row.pop { transform: scale(1.22); }
+
+    .mult-chip {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 1.5px 6px;
+      border-radius: 6px;
+      background: rgba(234, 182, 77, 0.16);
+      border: 1px solid rgba(234, 182, 77, 0.42);
+      color: var(--gold-light);
+    }
+
+    .mult-chip.overdrive {
+      background: rgba(34, 211, 238, 0.24);
+      border-color: rgba(34, 211, 238, 0.72);
+      color: #e0f2fe;
+    }
+
+    .fever-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 98px;
+    }
+
+    .fever-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .fever-head .hot {
+      color: var(--gold-light);
+      text-shadow: 0 0 8px rgba(234, 182, 77, 0.9);
+    }
+
+    .fever-track {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .fever-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #eab64d, #22d3ee);
+      transition: width 0.18s ease;
+    }
+
+    .fever-fill.overdrive {
+      background: linear-gradient(90deg, #eab64d, #00f5d4, #c084fc, #fb923c, #eab64d);
+      background-size: 220% 100%;
+      animation: auroraFlow 1.1s linear infinite;
+    }
+
+    @keyframes auroraFlow {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 220% 50%; }
+    }
+
+    .note-mini {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-left: 2px;
+    }
+
+    .el-orb {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px var(--gold);
+    }
+
+    .note-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 86px;
+    }
+
+    .note-key-line {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #fff8e7;
+      white-space: nowrap;
+    }
+
+    .note-voice-line {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+
+    .eq-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2.5px;
+      height: 16px;
+    }
+
+    .eq-bar {
+      width: 2.5px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--gold);
+      transition: height 0.11s ease, background 0.2s ease;
+    }
+
+    /* =======================================================================
+       TOP-RIGHT: Clean Noir-Gold Controls
+       ======================================================================= */
+    #hud-right {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-btn {
+      appearance: none;
+      border: 1px solid rgba(218, 177, 86, 0.20);
+      background: rgba(255, 255, 255, 0.035);
+      color: #ded8cb;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 7px 11px;
+      border-radius: 9px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .ctrl-btn:hover:not(:disabled) {
+      background: rgba(234, 182, 77, 0.15);
+      border-color: rgba(234, 182, 77, 0.54);
+      color: #fff8e7;
+      box-shadow: 0 0 16px rgba(234, 182, 77, 0.15);
+    }
+
+    .ctrl-btn.primary {
+      background: linear-gradient(135deg, rgba(234, 182, 77, 0.26), rgba(184, 132, 36, 0.18));
+      border-color: rgba(234, 182, 77, 0.50);
+      color: var(--gold-light);
+    }
+
+    .ctrl-btn.danger:hover:not(:disabled) {
+      background: rgba(251, 113, 133, 0.16);
+      border-color: rgba(251, 113, 133, 0.52);
+      color: #ffe4e6;
+    }
+
+    .ctrl-btn:active:not(:disabled) { transform: scale(0.96); }
+    .ctrl-btn:disabled { opacity: 0.32; cursor: default; }
+    .ctrl-btn.muted { opacity: 0.58; color: var(--text-muted); }
+
+    /* =======================================================================
+       BOTTOM PLAYABLE QUEUE / WORD RIBBON (Shown in Melody Rush & Word Forge!)
+       ======================================================================= */
+    #game-ribbon {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.28s ease, transform 0.28s ease;
+    }
+
+    #game-ribbon.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .ribbon-tag {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(234, 182, 77, 0.12);
+      border: 1px solid rgba(234, 182, 77, 0.32);
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .ribbon-keys {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .r-tile {
+      min-width: 30px;
+      height: 30px;
+      padding: 0 8px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      color: #8f8a7f;
+      transition: all 0.16s ease;
+    }
+
+    .r-tile.done {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #6ee7b7;
+    }
+
+    .r-tile.current {
+      background: linear-gradient(135deg, rgba(234, 182, 77, 0.34), rgba(250, 224, 158, 0.18));
+      border-color: #fae09e;
+      color: #fffef5;
+      transform: scale(1.14);
+      box-shadow: 0 0 18px rgba(234, 182, 77, 0.55);
+    }
+
+    .ribbon-stat {
+      font-size: 11px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #cbd5e1;
+      white-space: nowrap;
+    }
+
+    .ribbon-next-btn {
+      appearance: none;
+      border: 1px solid rgba(234, 182, 77, 0.30);
+      background: rgba(234, 182, 77, 0.10);
+      color: var(--gold-light);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 9px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .ribbon-next-btn:hover {
+      background: rgba(234, 182, 77, 0.24);
+    }
+
+    /* Bottom-Center: Interactive Key Elements & Instruments Legend */
+    #elements-bar {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: #9e988c;
+      white-space: nowrap;
+    }
+
+    .el-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .el-dot {
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 50%;
+    }
+
+    /* Projected 3D Floating Judgements & Note Tags */
+    #float-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 12;
+      overflow: hidden;
+    }
+
+    .float-tag {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+      white-space: nowrap;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.96);
+      animation: tagRise 0.92s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .float-grade {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .float-sub {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    @keyframes tagRise {
+      0%   { opacity: 0; transform: translate(-50%, -20%) scale(0.74); }
+      20%  { opacity: 1; transform: translate(-50%, -68%) scale(1.08); }
+      100% { opacity: 0; transform: translate(-50%, -160%) scale(0.95); }
+    }
+
+    /* Toast */
+    #key-toast {
+      position: fixed;
+      bottom: 112px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      z-index: 16;
+      padding: 6px 15px;
+      border-radius: 999px;
+      background: rgba(10, 11, 15, 0.90);
+      border: 1px solid rgba(234, 182, 77, 0.38);
+      backdrop-filter: blur(12px);
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--gold-light);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    #key-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 1050px) {
+      #elements-bar { display: none; }
+      .note-mini { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="overdrive-vignette"></div>
+  <div id="float-layer"></div>
+
+  <div class="hud-layer">
+    <!-- Top-Left: Brand, Rank, 3-Mode Gameplay Switcher & Progress -->
+    <div id="hud-left" class="glass-panel">
+      <div class="brand-row">
+        <div class="brand-title"><span class="brand-dot"></span>Keyforge 14</div>
+        <div class="badge-group">
+          <span class="rank-pill" id="rank-pill">RANK C</span>
+          <span class="counter-pill" id="counter">0 / 84</span>
+        </div>
+      </div>
+
+      <div class="mode-switch">
+        <button class="mode-btn active" id="mode-melody">♪ Melody</button>
+        <button class="mode-btn" id="mode-word">⚡ Words</button>
+        <button class="mode-btn" id="mode-zen">✦ Zen</button>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-bar"></div>
+      </div>
+      <div class="hud-meta-row">
+        <span id="hud-mode-tip">Hit the glowing golden key in rhythm</span>
+        <span class="meta-highlight" id="best-label">BEST 0</span>
+      </div>
+    </div>
+
+    <!-- Top-Center: Score, Combo, Aurum Overdrive & Live Synth Equalizer -->
+    <div id="hud-center" class="glass-panel">
+      <div class="stat-col">
+        <span class="stat-lbl">Score</span>
+        <span class="stat-num gold-num" id="score-val">0</span>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-col">
+        <span class="stat-lbl">Combo</span>
+        <div class="combo-row" id="combo-row">
+          <span class="stat-num" id="combo-val">0</span>
+          <span class="mult-chip" id="mult-chip">×1</span>
+        </div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="fever-col">
+        <div class="fever-head">
+          <span id="fever-lbl">Fever</span>
+          <span id="fever-pct">0%</span>
+        </div>
+        <div class="fever-track">
+          <div class="fever-fill" id="fever-fill"></div>
+        </div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="note-mini">
+        <span class="el-orb" id="el-orb"></span>
+        <div class="note-text">
+          <span class="note-key-line" id="el-key">READY</span>
+          <span class="note-voice-line" id="el-sound">84-Key Synth</span>
+        </div>
+        <div class="eq-bars" id="eq-bars">
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+          <span class="eq-bar"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top-Right: Quick Actions -->
+    <div id="hud-right" class="glass-panel">
+      <button class="ctrl-btn primary" id="cascade-btn" title="Assemble all remaining keys in a symphony wave">✦ Assemble</button>
+      <button class="ctrl-btn" id="sound-btn" title="Toggle Audio">🔊 Music</button>
+      <button class="ctrl-btn" id="view-btn" title="Reset Camera Angle">◎ View</button>
+      <button class="ctrl-btn danger" id="reset-btn" disabled title="Return all keys to cases (or press Esc)">↺ Reset</button>
+    </div>
+
+    <!-- Bottom Interactive Gameplay Ribbon (Active in Melody Rush & Word Forge) -->
+    <div id="game-ribbon" class="glass-panel visible">
+      <span class="ribbon-tag" id="ribbon-tag">♪ NOIR ARPEGGIO</span>
+      <div class="ribbon-keys" id="ribbon-keys"></div>
+      <span class="ribbon-stat" id="ribbon-stat">ACC 100%</span>
+      <button class="ribbon-next-btn" id="ribbon-next-btn" title="Next Song / Word">Next ↻</button>
+    </div>
+
+    <!-- Bottom Legend -->
+    <div id="elements-bar" class="glass-panel">
+      <span class="el-chip"><span class="el-dot" style="background:#00f5d4;box-shadow:0 0 8px #00f5d4"></span>QWERTY Harp</span>
+      <span class="el-chip"><span class="el-dot" style="background:#38bdf8;box-shadow:0 0 8px #38bdf8"></span>1–0 Marimba</span>
+      <span class="el-chip"><span class="el-dot" style="background:#c084fc;box-shadow:0 0 8px #c084fc"></span>F1–F12 Chords</span>
+      <span class="el-chip"><span class="el-dot" style="background:#10b981;box-shadow:0 0 8px #10b981"></span>Arrows Arp</span>
+      <span class="el-chip"><span class="el-dot" style="background:#eab64d;box-shadow:0 0 8px #eab64d"></span>Space Bass</span>
+      <span class="el-chip"><span class="el-dot" style="background:#fb923c;box-shadow:0 0 8px #fb923c"></span>Enter Strum</span>
+      <span class="el-chip"><span class="el-dot" style="background:#f43f5e;box-shadow:0 0 8px #f43f5e"></span>Mods Drums</span>
+    </div>
+  </div>
+
+  <div id="key-toast"></div>
+
+  <!-- Three.js r128 & GSAP via cdnjs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // =========================================================================
+    // 1. CONSTANTS & EXACT HP PAVILION 14 SERIES 84-KEY LAYOUT (1 unit = 10 mm)
+    // =========================================================================
+    const PITCH = 1.905;
+    const KEY_GAP = 0.14;
+    const KEY_H = 0.86;
+    const KEY_TRAVEL = 0.40;
+    const TILT_DEG = 6;
+    const TILT_RAD = THREE.MathUtils.degToRad(TILT_DEG);
+    const RACK_TILT_RAD = THREE.MathUtils.degToRad(24);
+    const LID_OPEN_ANGLE = -THREE.MathUtils.degToRad(110);
+
+    const GRID_UNITS_W = 16.0;
+    const GRID_CENTER_X = GRID_UNITS_W * 0.5;
+    const GRID_MIN_Z = -0.38;
+    const GRID_MAX_Z = 5.44;
+    const GRID_CENTER_Z = (GRID_MIN_Z + GRID_MAX_Z) * 0.5;
+    const GRID_UNITS_D = GRID_MAX_Z - GRID_MIN_Z;
+
+    const CASE_X_SCALE = 1.15;
+    const CASE_ROW_STEP = 2.86;
+    const CASE_PAD = 0.22;
+    const CASE_H = 1.22;
+    const CASE_BASE_T = 0.12;
+
+    const ELEMENT_META = {
+      alpha:  { name: 'Aurora Ripple',     hex: 0x00f5d4, css: '#00f5d4' },
+      number: { name: 'Dual Shockwave',    hex: 0x38bdf8, css: '#38bdf8' },
+      fn:     { name: 'Crown Chord',       hex: 0xc084fc, css: '#c084fc' },
+      arrow:  { name: 'Laser Stream',      hex: 0x10b981, css: '#10b981' },
+      space:  { name: 'Horizon Bass',      hex: 0xeab64d, css: '#eab64d' },
+      enter:  { name: 'Solar Strum',       hex: 0xfb923c, css: '#fb923c' },
+      esc:    { name: 'Crimson Recall',    hex: 0xfb7185, css: '#fb7185' },
+      nav:    { name: 'Crystal Chime',     hex: 0x2dd4bf, css: '#2dd4bf' },
+      mod:    { name: 'Studio Drum',       hex: 0xf43f5e, css: '#f43f5e' },
+      punct:  { name: 'Music Box',         hex: 0xfbbf24, css: '#fbbf24' }
+    };
+
+    function buildHpPavilion14Layout() {
+      const keys = [];
+      const add = (label, code, kx, ky, row, kw = 1, kh = 1, group = 'alpha', sub = '', dir = null, halfSlot = 0) => {
+        const gapD = kh < 0.6 ? 0.08 : KEY_GAP;
+        keys.push({
+          index: keys.length,
+          label,
+          sub,
+          code,
+          kx,
+          ky,
+          row,
+          kw,
+          kh,
+          group,
+          dir,
+          halfSlot,
+          cx: kx + kw * 0.5,
+          cz: ky,
+          keyW: kw * PITCH - KEY_GAP,
+          keyD: kh * PITCH - gapD,
+          state: 'stored',
+          lidAngle: 0,
+          caseLiftY: 0.85,
+          caseHover: 0,
+          targetGlow: 0,
+          targetColorHex: 0xeab64d,
+          activeTl: null,
+          introTl: null,
+          pressTl: null,
+          animMesh: null,
+          pressY: 0
+        });
+      };
+
+      // Row 0: Compact Function Row (16 keys, F1–F10 directly over 1–0)
+      add('ESC', 'Escape', 0, 0.0, 0, 1, 0.76, 'esc');
+      for (let i = 1; i <= 12; i++) add('F' + i, 'F' + i, i, 0.0, 0, 1, 0.76, 'fn');
+      add('PRTSC', 'PrintScreen', 13, 0.0, 0, 1, 0.76, 'nav');
+      add('INS', 'Insert', 14, 0.0, 0, 1, 0.76, 'nav');
+      add('DEL', 'Delete', 15, 0.0, 0, 1, 0.76, 'nav');
+
+      // Row 1: Number Row directly under F-keys + Backspace + Home (15 keys)
+      const numDefs = [
+        ['`', '~', 'Backquote', 'punct'],
+        ['1', '!', 'Digit1', 'number'], ['2', '@', 'Digit2', 'number'], ['3', '#', 'Digit3', 'number'],
+        ['4', '$', 'Digit4', 'number'], ['5', '%', 'Digit5', 'number'], ['6', '^', 'Digit6', 'number'],
+        ['7', '&', 'Digit7', 'number'], ['8', '*', 'Digit8', 'number'], ['9', '(', 'Digit9', 'number'],
+        ['0', ')', 'Digit0', 'number'], ['-', '_', 'Minus', 'punct'], ['=', '+', 'Equal', 'punct']
+      ];
+      numDefs.forEach((d, i) => add(d[0], d[2], i, 0.94, 1, 1, 1, d[3], d[1]));
+      add('BKSP', 'Backspace', 13, 0.94, 1, 2, 1, 'mod');
+      add('HOME', 'Home', 15, 0.94, 1, 1, 1, 'nav');
+
+      // Row 2: QWERTY + PgUp (15 keys)
+      add('TAB', 'Tab', 0, 1.94, 2, 1.5, 1, 'mod');
+      'QWERTYUIOP'.split('').forEach((ch, i) => add(ch, 'Key' + ch, 1.5 + i, 1.94, 2, 1, 1, 'alpha'));
+      add('[', 'BracketLeft', 11.5, 1.94, 2, 1, 1, 'punct', '{');
+      add(']', 'BracketRight', 12.5, 1.94, 2, 1, 1, 'punct', '}');
+      add('\\', 'Backslash', 13.5, 1.94, 2, 1.5, 1, 'punct', '|');
+      add('PGUP', 'PageUp', 15, 1.94, 2, 1, 1, 'nav');
+
+      // Row 3: Home Row + Enter + PgDn (14 keys)
+      add('CAPS', 'CapsLock', 0, 2.94, 3, 1.75, 1, 'mod');
+      'ASDFGHJKL'.split('').forEach((ch, i) => add(ch, 'Key' + ch, 1.75 + i, 2.94, 3, 1, 1, 'alpha'));
+      add(';', 'Semicolon', 10.75, 2.94, 3, 1, 1, 'punct', ':');
+      add("'", 'Quote', 11.75, 2.94, 3, 1, 1, 'punct', '"');
+      add('ENTER', 'Enter', 12.75, 2.94, 3, 2.25, 1, 'enter');
+      add('PGDN', 'PageDown', 15, 2.94, 3, 1, 1, 'nav');
+
+      // Row 4: Shift Row + End (13 keys)
+      add('SHIFT', 'ShiftLeft', 0, 3.94, 4, 2.25, 1, 'mod');
+      'ZXCVBNM'.split('').forEach((ch, i) => add(ch, 'Key' + ch, 2.25 + i, 3.94, 4, 1, 1, 'alpha'));
+      add(',', 'Comma', 9.25, 3.94, 4, 1, 1, 'punct', '<');
+      add('.', 'Period', 10.25, 3.94, 4, 1, 1, 'punct', '>');
+      add('/', 'Slash', 11.25, 3.94, 4, 1, 1, 'punct', '?');
+      add('SHIFT', 'ShiftRight', 12.25, 3.94, 4, 2.75, 1, 'mod');
+      add('END', 'End', 15, 3.94, 4, 1, 1, 'nav');
+
+      // Row 5: HP Pavilion 14 Bottom Row + Stacked Half-Height Up/Down Arrows (11 keys)
+      add('CTRL', 'ControlLeft', 0, 4.94, 5, 1.25, 1, 'mod');
+      add('FN', 'Fn', 1.25, 4.94, 5, 1.0, 1, 'mod');
+      add('WIN', 'MetaLeft', 2.25, 4.94, 5, 1.0, 1, 'mod');
+      add('ALT', 'AltLeft', 3.25, 4.94, 5, 1.0, 1, 'mod');
+      add('', 'Space', 4.25, 4.94, 5, 6.25, 1, 'space');
+      add('ALT', 'AltRight', 10.50, 4.94, 5, 1.25, 1, 'mod');
+      add('CTRL', 'ControlRight', 11.75, 4.94, 5, 1.25, 1, 'mod');
+      add('◀', 'ArrowLeft', 13.0, 4.94, 5, 1, 1, 'arrow', '', [-1, 0]);
+      add('▲', 'ArrowUp', 14.0, 4.695, 5, 1, 0.47, 'arrow', '', [0, -1], -1);
+      add('▼', 'ArrowDown', 14.0, 5.185, 5, 1, 0.47, 'arrow', '', [0, 1], 1);
+      add('▶', 'ArrowRight', 15.0, 4.94, 5, 1, 1, 'arrow', '', [1, 0]);
+
+      return keys;
+    }
+
+    const KEYS = buildHpPavilion14Layout();
+    const KEY_COUNT = KEYS.length; // 84
+    const KEY_BY_CODE = new Map(KEYS.map(k => [k.code, k]));
+
+    KEYS.forEach(k => {
+      k.plateX = (k.cx - GRID_CENTER_X) * PITCH;
+      k.plateZ = (k.cz - GRID_CENTER_Z) * PITCH;
+
+      k.rackX = (k.cx - GRID_CENTER_X) * PITCH * CASE_X_SCALE;
+      const baseRowZ = (k.row - 2.5) * CASE_ROW_STEP;
+      if (k.halfSlot === -1) {
+        k.rackZ = baseRowZ - 0.56;
+        k.caseD = k.keyD + 0.14;
+      } else if (k.halfSlot === 1) {
+        k.rackZ = baseRowZ + 0.56;
+        k.caseD = k.keyD + 0.14;
+      } else {
+        k.rackZ = baseRowZ;
+        k.caseD = k.keyD + CASE_PAD;
+      }
+      k.caseW = k.keyW + CASE_PAD;
+    });
+
+    // =========================================================================
+    // 2. 84-KEY MULTI-INSTRUMENT MUSICAL SYNTHESIZER + GAMEPLAY FEEDBACK SFX
+    // =========================================================================
+    const SoundEngine = (() => {
+      let ctx = null;
+      let masterOut = null;
+      let wetBus = null;
+      let noiseBuf = null;
+      let muted = false;
+
+      const m2f = m => 440 * Math.pow(2, (m - 69) / 12);
+      const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const midiName = m => NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+
+      const VOICE_MAP = {};
+      const qwertyMidi = [62, 64, 65, 67, 69, 72, 74, 76, 77, 79];
+      'QWERTYUIOP'.split('').forEach((ch, i) => {
+        const m = qwertyMidi[i];
+        VOICE_MAP['Key' + ch] = { kind: 'harp', midi: m, label: `${midiName(m)} · Harp` };
+      });
+      const homeMidi = [57, 60, 62, 64, 65, 67, 69, 72, 74];
+      'ASDFGHJKL'.split('').forEach((ch, i) => {
+        const m = homeMidi[i];
+        VOICE_MAP['Key' + ch] = { kind: 'rhodes', midi: m, label: `${midiName(m)} · Rhodes` };
+      });
+      const bassMidi = [38, 41, 43, 45, 48, 50, 53];
+      'ZXCVBNM'.split('').forEach((ch, i) => {
+        const m = bassMidi[i];
+        VOICE_MAP['Key' + ch] = { kind: 'bass', midi: m, label: `${midiName(m)} · Bass` };
+      });
+      const numMidi = [69, 72, 74, 76, 77, 79, 81, 84, 86, 88];
+      ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0'].forEach((c, i) => {
+        const m = numMidi[i];
+        VOICE_MAP[c] = { kind: 'marimba', midi: m, label: `${midiName(m)} · Marimba` };
+      });
+      const fChords = [
+        { name: 'Dm9', notes: [50, 57, 60, 64] }, { name: 'Fmaj7', notes: [53, 60, 64, 69] },
+        { name: 'Gm9', notes: [55, 62, 65, 69] }, { name: 'Am7', notes: [57, 64, 67, 72] },
+        { name: 'Bbmaj7', notes: [58, 62, 65, 69] }, { name: 'C6/9', notes: [60, 64, 67, 74] },
+        { name: 'Dm11', notes: [50, 57, 65, 67] }, { name: 'Em7b5', notes: [52, 58, 62, 67] },
+        { name: 'F6/9', notes: [53, 62, 64, 69] }, { name: 'G9sus', notes: [55, 60, 62, 69] },
+        { name: 'Am9', notes: [57, 64, 67, 71] }, { name: 'Dmaj9', notes: [50, 57, 61, 64] }
+      ];
+      fChords.forEach((ch, i) => {
+        VOICE_MAP['F' + (i + 1)] = { kind: 'chord', notes: ch.notes, label: `${ch.name} · Pad` };
+      });
+
+      VOICE_MAP['ArrowUp']    = { kind: 'arp', notes: [62, 69, 74, 76], label: 'Rise · Arp' };
+      VOICE_MAP['ArrowDown']  = { kind: 'arp', notes: [76, 74, 69, 62], label: 'Fall · Arp' };
+      VOICE_MAP['ArrowLeft']  = { kind: 'arp', notes: [72, 67, 64, 60], label: 'Drift L · Arp' };
+      VOICE_MAP['ArrowRight'] = { kind: 'arp', notes: [60, 64, 67, 72], label: 'Glide R · Arp' };
+      VOICE_MAP['Space']      = { kind: 'subdrop', midi: 38, notes: [50, 57, 62], label: 'D2 · Sub Boom' };
+      VOICE_MAP['Enter']      = { kind: 'strum',   notes: [50, 57, 62, 64, 69, 74], label: 'Dadd9 · Strum' };
+      VOICE_MAP['Escape']     = { kind: 'recall',  notes: [74, 69, 62], label: 'Recall · Bell' };
+
+      VOICE_MAP['ControlLeft']  = { kind: 'kick',   pitch: 118,   label: 'Deep Kick' };
+      VOICE_MAP['ControlRight'] = { kind: 'kick',   pitch: 96,    label: 'Sub Kick' };
+      VOICE_MAP['ShiftLeft']    = { kind: 'snare',  pitch: 210,   label: 'Crisp Snare' };
+      VOICE_MAP['ShiftRight']   = { kind: 'snare',  pitch: 265,   label: 'Tight Rim' };
+      VOICE_MAP['AltLeft']      = { kind: 'hat',    decay: 0.045, label: 'Closed Hat' };
+      VOICE_MAP['AltRight']     = { kind: 'hat',    decay: 0.16,  label: 'Open Hat' };
+      VOICE_MAP['Tab']          = { kind: 'clave',  pitch: 1120,  label: 'Wood Clave' };
+      VOICE_MAP['CapsLock']     = { kind: 'clave',  pitch: 860,   label: 'Studio Snap' };
+      VOICE_MAP['Backspace']    = { kind: 'shaker',               label: 'Brush Sweep' };
+      VOICE_MAP['Fn']           = { kind: 'bell',   midi: 84,     label: 'C6 · Gold Bell' };
+      VOICE_MAP['MetaLeft']     = { kind: 'bell',   midi: 86,     label: 'D6 · Spark Bell' };
+
+      const punctCodes = ['Backquote', 'Minus', 'Equal', 'BracketLeft', 'BracketRight', 'Backslash', 'Semicolon', 'Quote', 'Comma', 'Period', 'Slash'];
+      const punctMidi  = [74, 76, 77, 79, 81, 84, 72, 74, 67, 69, 71];
+      punctCodes.forEach((c, i) => { VOICE_MAP[c] = { kind: 'musicbox', midi: punctMidi[i], label: `${midiName(punctMidi[i])} · Box` }; });
+
+      const navCodes = ['PrintScreen', 'Insert', 'Delete', 'Home', 'PageUp', 'PageDown', 'End'];
+      const navMidi  = [76, 79, 81, 84, 86, 88, 72];
+      navCodes.forEach((c, i) => { VOICE_MAP[c] = { kind: 'bell', midi: navMidi[i], label: `${midiName(navMidi[i])} · Chime` }; });
+
+      function getVoice(key) {
+        return VOICE_MAP[key.code] || { kind: 'harp', midi: 62 + (key.index % 12), label: 'Synth Note' };
+      }
+
+      function buildReverb(ac) {
+        const rate = ac.sampleRate;
+        const len = Math.floor(rate * 1.35);
+        const buf = ac.createBuffer(2, len, rate);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = buf.getChannelData(ch);
+          for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8) * 0.45;
+        }
+        const conv = ac.createConvolver();
+        conv.buffer = buf;
+        const wetGain = ac.createGain();
+        wetGain.gain.value = 0.28;
+        conv.connect(wetGain);
+        wetGain.connect(masterOut);
+        return conv;
+      }
+
+      function ensureCtx() {
+        if (muted) return null;
+        if (!ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          ctx = new AC();
+          const comp = ctx.createDynamicsCompressor();
+          comp.threshold.value = -10; comp.knee.value = 18; comp.ratio.value = 4;
+          comp.attack.value = 0.004; comp.release.value = 0.14;
+          comp.connect(ctx.destination);
+          masterOut = comp;
+          wetBus = buildReverb(ctx);
+
+          const len = Math.floor(ctx.sampleRate * 0.25);
+          noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+          const data = noiseBuf.getChannelData(0);
+          for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+        }
+        if (ctx.state === 'suspended') ctx.resume();
+        return ctx;
+      }
+
+      function sendToMix(node, reverbAmount = 0.4) {
+        node.connect(masterOut);
+        if (reverbAmount > 0 && wetBus) {
+          const s = ctx.createGain();
+          s.gain.value = reverbAmount;
+          node.connect(s);
+          s.connect(wetBus);
+        }
+      }
+
+      function playMechanicalThock(ac, key, vol, isSnap) {
+        const now = ac.currentTime;
+        const sizeFactor = Math.min(2.2, Math.sqrt(key.kw * Math.max(0.5, key.kh)));
+        const baseFreq = (isSnap ? 165 : 192) / Math.pow(sizeFactor, 0.40);
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq * 1.4, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.42, now + 0.042);
+        g.gain.setValueAtTime(0.001, now);
+        g.gain.linearRampToValueAtTime(0.18 * vol, now + 0.003);
+        g.gain.exponentialRampToValueAtTime(0.0008, now + 0.055);
+        osc.connect(g); g.connect(masterOut);
+        osc.start(now); osc.stop(now + 0.06);
+
+        const nSrc = ac.createBufferSource(); nSrc.buffer = noiseBuf;
+        const bp = ac.createBiquadFilter(); bp.type = 'bandpass';
+        bp.frequency.value = 1480 / Math.pow(sizeFactor, 0.25); bp.Q.value = 1.7;
+        const ng = ac.createGain();
+        ng.gain.setValueAtTime(0.13 * vol, now);
+        ng.gain.exponentialRampToValueAtTime(0.0008, now + 0.025);
+        nSrc.connect(bp); bp.connect(ng); ng.connect(masterOut);
+        nSrc.start(now); nSrc.stop(now + 0.032);
+      }
+
+      function playKeyMusic(key, volume = 1.0, isSnap = false) {
+        const voice = getVoice(key);
+        const ac = ensureCtx();
+        if (!ac) return voice;
+        const now = ac.currentTime;
+        playMechanicalThock(ac, key, volume, isSnap);
+        const v = volume;
+
+        if (voice.kind === 'harp') {
+          const f = m2f(voice.midi);
+          const osc1 = ac.createOscillator(); const osc2 = ac.createOscillator();
+          const filt = ac.createBiquadFilter(); const g = ac.createGain();
+          osc1.type = 'triangle'; osc1.frequency.setValueAtTime(f, now);
+          osc2.type = 'sine';     osc2.frequency.setValueAtTime(f * 2.0, now);
+          filt.type = 'lowpass'; filt.frequency.setValueAtTime(f * 6.5, now);
+          filt.frequency.exponentialRampToValueAtTime(f * 1.6, now + 0.35);
+          g.gain.setValueAtTime(0.0008, now); g.gain.linearRampToValueAtTime(0.20 * v, now + 0.006);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.68);
+          const g2 = ac.createGain(); g2.gain.value = 0.28;
+          osc1.connect(filt); osc2.connect(g2); g2.connect(filt); filt.connect(g);
+          sendToMix(g, 0.55); osc1.start(now); osc2.start(now); osc1.stop(now + 0.72); osc2.stop(now + 0.72);
+        } else if (voice.kind === 'rhodes') {
+          const f = m2f(voice.midi);
+          const c = ac.createOscillator(); const ti = ac.createOscillator();
+          const g = ac.createGain(); const tg = ac.createGain();
+          c.type = 'sine'; c.frequency.setValueAtTime(f, now);
+          ti.type = 'sine'; ti.frequency.setValueAtTime(f * 3.0, now);
+          tg.gain.setValueAtTime(0.08 * v, now); tg.gain.exponentialRampToValueAtTime(0.0008, now + 0.14);
+          g.gain.setValueAtTime(0.001, now); g.gain.linearRampToValueAtTime(0.23 * v, now + 0.010);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.78);
+          c.connect(g); ti.connect(tg); tg.connect(g); sendToMix(g, 0.45);
+          c.start(now); ti.start(now); c.stop(now + 0.82); ti.stop(now + 0.22);
+        } else if (voice.kind === 'bass') {
+          const f = m2f(voice.midi);
+          const osc = ac.createOscillator(); const sub = ac.createOscillator();
+          const lp = ac.createBiquadFilter(); const g = ac.createGain();
+          osc.type = 'sawtooth'; osc.frequency.setValueAtTime(f, now);
+          sub.type = 'sine'; sub.frequency.setValueAtTime(f * 0.5, now);
+          lp.type = 'lowpass'; lp.Q.value = 4.2; lp.frequency.setValueAtTime(f * 7.0, now);
+          lp.frequency.exponentialRampToValueAtTime(f * 1.4, now + 0.28);
+          g.gain.setValueAtTime(0.001, now); g.gain.linearRampToValueAtTime(0.22 * v, now + 0.008);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.52);
+          const sg = ac.createGain(); sg.gain.value = 0.55;
+          osc.connect(lp); sub.connect(sg); sg.connect(lp); lp.connect(g); sendToMix(g, 0.20);
+          osc.start(now); sub.start(now); osc.stop(now + 0.56); sub.stop(now + 0.56);
+        } else if (voice.kind === 'marimba') {
+          const f = m2f(voice.midi);
+          const o1 = ac.createOscillator(); const o2 = ac.createOscillator();
+          const g = ac.createGain(); const g2 = ac.createGain();
+          o1.type = 'sine'; o1.frequency.setValueAtTime(f, now);
+          o2.type = 'sine'; o2.frequency.setValueAtTime(f * 3.98, now);
+          g.gain.setValueAtTime(0.001, now); g.gain.linearRampToValueAtTime(0.22 * v, now + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.34);
+          g2.gain.setValueAtTime(0.09 * v, now); g2.gain.exponentialRampToValueAtTime(0.0008, now + 0.075);
+          o1.connect(g); o2.connect(g2); g2.connect(g); sendToMix(g, 0.52);
+          o1.start(now); o2.start(now); o1.stop(now + 0.38); o2.stop(now + 0.12);
+        } else if (voice.kind === 'chord') {
+          voice.notes.forEach((m, idx) => {
+            const t0 = now + idx * 0.018;
+            const o = ac.createOscillator(); const lp = ac.createBiquadFilter(); const g = ac.createGain();
+            o.type = 'triangle'; o.frequency.setValueAtTime(m2f(m), t0);
+            lp.type = 'lowpass'; lp.frequency.setValueAtTime(1900, t0);
+            g.gain.setValueAtTime(0.0008, t0); g.gain.linearRampToValueAtTime(0.11 * v, t0 + 0.08);
+            g.gain.exponentialRampToValueAtTime(0.0008, t0 + 1.05);
+            o.connect(lp); lp.connect(g); sendToMix(g, 0.72); o.start(t0); o.stop(t0 + 1.12);
+          });
+        } else if (voice.kind === 'arp') {
+          voice.notes.forEach((m, idx) => {
+            const t0 = now + idx * 0.048;
+            const o = ac.createOscillator(); const g = ac.createGain();
+            o.type = 'triangle'; o.frequency.setValueAtTime(m2f(m), t0);
+            g.gain.setValueAtTime(0.001, t0); g.gain.linearRampToValueAtTime(0.15 * v, t0 + 0.006);
+            g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.28);
+            o.connect(g); sendToMix(g, 0.55); o.start(t0); o.stop(t0 + 0.32);
+          });
+        } else if (voice.kind === 'subdrop') {
+          const sub = ac.createOscillator(); const sg = ac.createGain();
+          sub.type = 'sine'; sub.frequency.setValueAtTime(110, now);
+          sub.frequency.exponentialRampToValueAtTime(46, now + 0.22);
+          sg.gain.setValueAtTime(0.001, now); sg.gain.linearRampToValueAtTime(0.32 * v, now + 0.008);
+          sg.gain.exponentialRampToValueAtTime(0.0008, now + 0.58);
+          sub.connect(sg); sendToMix(sg, 0.15); sub.start(now); sub.stop(now + 0.62);
+          voice.notes.forEach((m, idx) => {
+            const o = ac.createOscillator(); const g = ac.createGain();
+            o.type = 'sine'; o.frequency.setValueAtTime(m2f(m), now + idx * 0.015);
+            g.gain.setValueAtTime(0.001, now + idx * 0.015); g.gain.linearRampToValueAtTime(0.075 * v, now + idx * 0.015 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0008, now + 0.72);
+            o.connect(g); sendToMix(g, 0.65); o.start(now + idx * 0.015); o.stop(now + 0.76);
+          });
+        } else if (voice.kind === 'strum') {
+          voice.notes.forEach((m, idx) => {
+            const t0 = now + idx * 0.024;
+            const o = ac.createOscillator(); const g = ac.createGain();
+            o.type = 'triangle'; o.frequency.setValueAtTime(m2f(m), t0);
+            g.gain.setValueAtTime(0.001, t0); g.gain.linearRampToValueAtTime(0.13 * v, t0 + 0.006);
+            g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.88);
+            o.connect(g); sendToMix(g, 0.68); o.start(t0); o.stop(t0 + 0.92);
+          });
+        } else if (voice.kind === 'kick') {
+          const o = ac.createOscillator(); const g = ac.createGain();
+          o.type = 'sine'; o.frequency.setValueAtTime(voice.pitch, now);
+          o.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+          g.gain.setValueAtTime(0.001, now); g.gain.linearRampToValueAtTime(0.36 * v, now + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.28);
+          o.connect(g); sendToMix(g, 0.12); o.start(now); o.stop(now + 0.30);
+        } else if (voice.kind === 'snare') {
+          const o = ac.createOscillator(); const og = ac.createGain();
+          o.type = 'triangle'; o.frequency.setValueAtTime(voice.pitch, now);
+          o.frequency.exponentialRampToValueAtTime(110, now + 0.06);
+          og.gain.setValueAtTime(0.22 * v, now); og.gain.exponentialRampToValueAtTime(0.0008, now + 0.09);
+          o.connect(og); sendToMix(og, 0.25); o.start(now); o.stop(now + 0.10);
+          const ns = ac.createBufferSource(); ns.buffer = noiseBuf;
+          const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1400;
+          const ng = ac.createGain(); ng.gain.setValueAtTime(0.22 * v, now);
+          ng.gain.exponentialRampToValueAtTime(0.0008, now + 0.14);
+          ns.connect(hp); hp.connect(ng); sendToMix(ng, 0.32); ns.start(now); ns.stop(now + 0.16);
+        } else if (voice.kind === 'hat') {
+          const ns = ac.createBufferSource(); ns.buffer = noiseBuf;
+          const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6800;
+          const ng = ac.createGain(); ng.gain.setValueAtTime(0.16 * v, now);
+          ng.gain.exponentialRampToValueAtTime(0.0008, now + voice.decay);
+          ns.connect(hp); hp.connect(ng); sendToMix(ng, 0.22); ns.start(now); ns.stop(now + voice.decay + 0.03);
+        } else if (voice.kind === 'clave') {
+          const o = ac.createOscillator(); const g = ac.createGain();
+          o.type = 'sine'; o.frequency.setValueAtTime(voice.pitch, now);
+          o.frequency.exponentialRampToValueAtTime(voice.pitch * 0.92, now + 0.055);
+          g.gain.setValueAtTime(0.22 * v, now); g.gain.exponentialRampToValueAtTime(0.0008, now + 0.065);
+          o.connect(g); sendToMix(g, 0.38); o.start(now); o.stop(now + 0.08);
+        } else if (voice.kind === 'shaker') {
+          const ns = ac.createBufferSource(); ns.buffer = noiseBuf;
+          const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 4600; bp.Q.value = 1.4;
+          const ng = ac.createGain(); ng.gain.setValueAtTime(0.001, now);
+          ng.gain.linearRampToValueAtTime(0.16 * v, now + 0.035);
+          ng.gain.exponentialRampToValueAtTime(0.0008, now + 0.13);
+          ns.connect(bp); bp.connect(ng); sendToMix(ng, 0.30); ns.start(now); ns.stop(now + 0.15);
+        } else if (voice.kind === 'musicbox' || voice.kind === 'bell') {
+          const f = m2f(voice.midi);
+          const o1 = ac.createOscillator(); const o2 = ac.createOscillator(); const g = ac.createGain();
+          o1.type = 'sine'; o1.frequency.setValueAtTime(f, now);
+          o2.type = 'sine'; o2.frequency.setValueAtTime(f * (voice.kind === 'bell' ? 2.756 : 2.0), now);
+          const g2 = ac.createGain(); g2.gain.value = 0.24;
+          g.gain.setValueAtTime(0.001, now); g.gain.linearRampToValueAtTime(0.17 * v, now + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + 0.65);
+          o1.connect(g); o2.connect(g2); g2.connect(g); sendToMix(g, 0.62);
+          o1.start(now); o2.start(now); o1.stop(now + 0.70); o2.stop(now + 0.45);
+        } else if (voice.kind === 'recall') {
+          voice.notes.forEach((m, idx) => {
+            const t0 = now + idx * 0.065;
+            const o = ac.createOscillator(); const g = ac.createGain();
+            o.type = 'sine'; o.frequency.setValueAtTime(m2f(m), t0);
+            g.gain.setValueAtTime(0.15 * v, t0); g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.52);
+            o.connect(g); sendToMix(g, 0.65); o.start(t0); o.stop(t0 + 0.56);
+          });
+        }
+        return voice;
+      }
+
+      function playFanfare() {
+        const ac = ensureCtx();
+        if (!ac) return;
+        const now = ac.currentTime;
+        [62, 69, 74, 76, 81].forEach((m, i) => {
+          const t0 = now + i * 0.045;
+          const o = ac.createOscillator(); const g = ac.createGain();
+          o.type = 'sine'; o.frequency.setValueAtTime(m2f(m), t0);
+          g.gain.setValueAtTime(0.001, t0); g.gain.linearRampToValueAtTime(0.12, t0 + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.55);
+          o.connect(g); sendToMix(g, 0.68); o.start(t0); o.stop(t0 + 0.58);
+        });
+      }
+
+      function playSoftError() {
+        const ac = ensureCtx();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const o = ac.createOscillator(); const g = ac.createGain();
+        o.type = 'triangle'; o.frequency.setValueAtTime(160, now);
+        o.frequency.exponentialRampToValueAtTime(105, now + 0.12);
+        g.gain.setValueAtTime(0.10, now); g.gain.exponentialRampToValueAtTime(0.0008, now + 0.14);
+        o.connect(g); g.connect(masterOut); o.start(now); o.stop(now + 0.15);
+      }
+
+      function playCaseTick() {
+        const ac = ensureCtx();
+        if (!ac) return;
+        const now = ac.currentTime;
+        const osc = ac.createOscillator(); const gain = ac.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(1950 + Math.random() * 240, now);
+        osc.frequency.exponentialRampToValueAtTime(980, now + 0.02);
+        gain.gain.setValueAtTime(0.04, now); gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.024);
+        osc.connect(gain); gain.connect(masterOut); osc.start(now); osc.stop(now + 0.028);
+      }
+
+      return {
+        playKeyMusic,
+        playFanfare,
+        playSoftError,
+        playCaseTick,
+        getVoice,
+        toggleMute() { muted = !muted; return muted; }
+      };
+    })();
+
+    // =========================================================================
+    // 3. ULTRA-DARK STUDIO SCENE, SOFTBOX REFLECTIONS & WARM-GOLD LIGHTING
+    // =========================================================================
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050608);
+    scene.fog = new THREE.FogExp2(0x050608, 0.0056);
+
+    const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.5, 340);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.22;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    function buildStudioEnvMap() {
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x06070a);
+      const addPanel = (w, h, color, pos, rot) => {
+        const mesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })
+        );
+        mesh.position.set(pos[0], pos[1], pos[2]);
+        mesh.rotation.set(rot[0], rot[1], rot[2]);
+        envScene.add(mesh);
+      };
+      addPanel(48, 18, 0xfff6e5, [0, 23, 2], [Math.PI / 2, 0, 0]);
+      addPanel(30, 12, 0xcce4ff, [-24, 12, 12], [0, Math.PI / 3, 0]);
+      addPanel(32, 12, 0xffd782, [24, 11, 10], [0, -Math.PI / 3, 0]);
+      addPanel(44, 6, 0xffe4a8, [0, 11, -24], [0, 0, 0]);
+      const rt = pmrem.fromScene(envScene, 0.032);
+      pmrem.dispose();
+      envScene.traverse(obj => { if (obj.geometry) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); });
+      return rt.texture;
+    }
+
+    scene.environment = buildStudioEnvMap();
+
+    scene.add(new THREE.HemisphereLight(0xf6ead6, 0x090a0e, 0.50));
+
+    const keyLight = new THREE.DirectionalLight(0xfff5e2, 1.58);
+    keyLight.position.set(20, 40, 24);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.near = 10; keyLight.shadow.camera.far = 115;
+    const sBound = 32;
+    keyLight.shadow.camera.left = -sBound; keyLight.shadow.camera.right = sBound;
+    keyLight.shadow.camera.top = sBound; keyLight.shadow.camera.bottom = -sBound;
+    keyLight.shadow.bias = -0.0004; keyLight.shadow.normalBias = 0.03;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x60a5fa, 0.38);
+    fillLight.position.set(-26, 18, 16);
+    scene.add(fillLight);
+
+    const goldRimLight = new THREE.DirectionalLight(0xf5c451, 0.80);
+    goldRimLight.position.set(4, 21, -30);
+    scene.add(goldRimLight);
+
+    const fxPointLight = new THREE.PointLight(0xeab64d, 0, 22, 2);
+    fxPointLight.position.set(0, 6, 8);
+    scene.add(fxPointLight);
+
+    function createObsidianDesk() {
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(512, 512, 24, 512, 512, 512);
+      g.addColorStop(0, '#0f1016'); g.addColorStop(0.45, '#08090d'); g.addColorStop(1, '#050608');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 1024, 1024);
+
+      ctx.strokeStyle = 'rgba(234, 182, 77, 0.045)'; ctx.lineWidth = 1;
+      for (let i = 0; i <= 1024; i += 32) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
+      }
+      const mask = ctx.createRadialGradient(512, 512, 110, 512, 512, 490);
+      mask.addColorStop(0, 'rgba(5, 6, 8, 0)'); mask.addColorStop(0.68, 'rgba(5, 6, 8, 0.55)'); mask.addColorStop(1, 'rgba(5, 6, 8, 1)');
+      ctx.fillStyle = mask; ctx.fillRect(0, 0, 1024, 1024);
+
+      const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(520, 520),
+        new THREE.MeshStandardMaterial({ map: tex, roughness: 0.58, metalness: 0.25 })
+      );
+      floor.rotation.x = -Math.PI / 2; floor.position.y = 0; floor.receiveShadow = true;
+      scene.add(floor);
+    }
+    createObsidianDesk();
+
+    // =========================================================================
+    // 4. GEOMETRY & PROCEDURAL TEXTURE HELPERS
+    // =========================================================================
+    function mergeGeometries(geos) {
+      const nonIndexed = geos.map(g => (g.index ? g.toNonIndexed() : g));
+      let totalVerts = 0;
+      nonIndexed.forEach(g => { totalVerts += g.attributes.position.count; });
+      const pos = new Float32Array(totalVerts * 3);
+      const norm = new Float32Array(totalVerts * 3);
+      const uv = new Float32Array(totalVerts * 2);
+      let vOff = 0;
+      nonIndexed.forEach(g => {
+        const p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+        pos.set(p.array, vOff * 3);
+        if (n) norm.set(n.array, vOff * 3);
+        if (u) uv.set(u.array, vOff * 2);
+        vOff += p.count;
+      });
+      const merged = new THREE.BufferGeometry();
+      merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      merged.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+      merged.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      return merged;
+    }
+
+    function roundedRectShape(w, h, r) {
+      const s = new THREE.Shape(), hw = w * 0.5, hh = h * 0.5, cr = Math.min(r, hw, hh);
+      s.moveTo(-hw + cr, -hh); s.lineTo(hw - cr, -hh); s.quadraticCurveTo(hw, -hh, hw, -hh + cr);
+      s.lineTo(hw, hh - cr); s.quadraticCurveTo(hw, hh, hw - cr, hh);
+      s.lineTo(-hw + cr, hh); s.quadraticCurveTo(-hw, hh, -hw, hh - cr);
+      s.lineTo(-hw, -hh + cr); s.quadraticCurveTo(-hw, -hh, -hw + cr, -hh);
+      return s;
+    }
+
+    function roundedRectPath(w, h, r) {
+      const p = new THREE.Path(), hw = w * 0.5, hh = h * 0.5, cr = Math.min(r, hw, hh);
+      p.moveTo(-hw + cr, -hh); p.lineTo(hw - cr, -hh); p.quadraticCurveTo(hw, -hh, hw, -hh + cr);
+      p.lineTo(hw, hh - cr); p.quadraticCurveTo(hw, hh, hw - cr, hh);
+      p.lineTo(-hw + cr, hh); p.quadraticCurveTo(-hw, hh, -hw, hh - cr);
+      p.lineTo(-hw, -hh + cr); p.quadraticCurveTo(-hw, -hh, -hw + cr, -hh);
+      return p;
+    }
+
+    function roundSquarePoint(x, z, cornerR) {
+      const ax = Math.abs(x), az = Math.abs(z), inner = 0.5 - cornerR;
+      if (ax > inner && az > inner) {
+        const dx = ax - inner, dz = az - inner, len = Math.hypot(dx, dz);
+        if (len > 1e-5) {
+          const scale = Math.max(dx, dz) / len;
+          return [Math.sign(x) * (inner + dx * scale), Math.sign(z) * (inner + dz * scale)];
+        }
+      }
+      return [x, z];
+    }
+
+    function createBrushedTextures(baseRGB, scratchRGBA) {
+      const w = 512, h = 512;
+      const colC = document.createElement('canvas'); colC.width = w; colC.height = h;
+      const cCtx = colC.getContext('2d');
+      const rghC = document.createElement('canvas'); rghC.width = w; rghC.height = h;
+      const rCtx = rghC.getContext('2d');
+      cCtx.fillStyle = `rgb(${baseRGB[0]},${baseRGB[1]},${baseRGB[2]})`; cCtx.fillRect(0, 0, w, h);
+      rCtx.fillStyle = '#484848'; rCtx.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y++) {
+        const v = (Math.random() - 0.5) * 16;
+        cCtx.fillStyle = `rgb(${THREE.MathUtils.clamp(Math.round(baseRGB[0]+v),0,255)},${THREE.MathUtils.clamp(Math.round(baseRGB[1]+v),0,255)},${THREE.MathUtils.clamp(Math.round(baseRGB[2]+v),0,255)})`;
+        cCtx.fillRect(0, y, w, 1);
+        const rv = THREE.MathUtils.clamp(Math.round(68 + v * 1.6), 30, 130);
+        rCtx.fillStyle = `rgb(${rv},${rv},${rv})`; rCtx.fillRect(0, y, w, 1);
+        if (Math.random() < 0.45) {
+          const sx = Math.random() * w, slen = 45 + Math.random() * 190;
+          cCtx.fillStyle = scratchRGBA; cCtx.fillRect(sx, y, slen, 1);
+          rCtx.fillStyle = 'rgba(28,28,28,0.28)'; rCtx.fillRect(sx, y, slen, 1);
+        }
+      }
+      const map = new THREE.CanvasTexture(colC); map.encoding = THREE.sRGBEncoding;
+      map.wrapS = map.wrapT = THREE.RepeatWrapping; map.repeat.set(3, 2);
+      const rough = new THREE.CanvasTexture(rghC);
+      rough.wrapS = rough.wrapT = THREE.RepeatWrapping; rough.repeat.set(3, 2);
+      return { map, rough };
+    }
+
+    function createNoirGoldPlateTexture(innerW, innerD) {
+      const cw = 2048, ch = 768;
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0c0d12'; ctx.fillRect(0, 0, cw, ch);
+      for (let y = 0; y < ch; y += 2) {
+        ctx.fillStyle = `rgba(234, 182, 77, ${0.012 + Math.random() * 0.016})`;
+        ctx.fillRect(0, y, cw, 1);
+      }
+      ctx.strokeStyle = 'rgba(234, 182, 77, 0.24)'; ctx.lineWidth = 3;
+      ctx.strokeRect(10, 10, cw - 20, ch - 20);
+      const toPxX = x => ((x + innerW * 0.5) / innerW) * cw;
+      const toPxY = z => ((z + innerD * 0.5) / innerD) * ch;
+      const scaleX = cw / innerW, scaleY = ch / innerD;
+
+      KEYS.forEach(k => {
+        const px = toPxX(k.plateX), py = toPxY(k.plateZ);
+        const cutW = 1.42 * scaleX;
+        const cutH = (k.kh < 0.6 ? 0.72 : k.kh < 0.85 ? 1.15 : 1.42) * scaleY;
+        ctx.fillStyle = '#5c461a'; ctx.fillRect(px - cutW * 0.5 - 3, py - cutH * 0.5 - 3, cutW + 6, cutH + 6);
+        ctx.fillStyle = '#040507'; ctx.fillRect(px - cutW * 0.5, py - cutH * 0.5, cutW, cutH);
+        ctx.fillStyle = 'rgba(245, 198, 86, 0.52)';
+        ctx.fillRect(px - cutW * 0.32, py + cutH * 0.24, 7, 3);
+        ctx.fillRect(px + cutW * 0.20, py + cutH * 0.24, 7, 3);
+        if (k.kw >= 2) {
+          const stabOff = k.kw >= 6 ? 5.0 : 1.19;
+          [-stabOff, stabOff].forEach(off => {
+            const sx = toPxX(k.plateX + off);
+            ctx.fillStyle = '#3d2e11'; ctx.fillRect(sx - 0.34 * scaleX, py - 0.62 * scaleY, 0.68 * scaleX, 1.24 * scaleY);
+            ctx.fillStyle = '#050608'; ctx.fillRect(sx - 0.30 * scaleX, py - 0.58 * scaleY, 0.60 * scaleX, 1.16 * scaleY);
+          });
+        }
+      });
+
+      [[-innerW*0.47,-innerD*0.44],[0,-innerD*0.44],[innerW*0.47,-innerD*0.44],
+       [-innerW*0.47,innerD*0.44],[0,innerD*0.44],[innerW*0.47,innerD*0.44]].forEach(([sx, sz]) => {
+        const px = toPxX(sx), py = toPxY(sz);
+        ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fillStyle = '#d4a33b'; ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, 3.2, 0, Math.PI * 2); ctx.fillStyle = '#14110a'; ctx.fill();
+      });
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      return tex;
+    }
+
+    function createGlowTexture() {
+      const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.28, 'rgba(255,255,255,0.68)');
+      g.addColorStop(0.65, 'rgba(255,255,255,0.16)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createBeamGradientTexture() {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+      const ctx = c.getContext('2d');
+      const g = ctx.createLinearGradient(0, 256, 0, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.38, 'rgba(255,255,255,0.40)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 256);
+      return new THREE.CanvasTexture(c);
+    }
+
+    const glowSpriteTex = createGlowTexture();
+    const beamGradTex = createBeamGradientTexture();
+
+    const moteCount = 85;
+    const motePositions = new Float32Array(moteCount * 3);
+    for (let i = 0; i < moteCount; i++) {
+      motePositions[i * 3 + 0] = (Math.random() - 0.5) * 80;
+      motePositions[i * 3 + 1] = 1 + Math.random() * 24;
+      motePositions[i * 3 + 2] = (Math.random() - 0.5) * 58;
+    }
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute('position', new THREE.BufferAttribute(motePositions, 3));
+    const motePoints = new THREE.Points(
+      moteGeo,
+      new THREE.PointsMaterial({ size: 0.36, map: glowSpriteTex, color: 0xf5d078, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    scene.add(motePoints);
+
+    // =========================================================================
+    // 5. BLACK & 24K GOLD HP PAVILION 14 CHASSIS
+    // =========================================================================
+    const keyboardRoot = new THREE.Group();
+    keyboardRoot.position.set(0, 0, 8.6);
+    scene.add(keyboardRoot);
+
+    const INNER_W = GRID_UNITS_W * PITCH + 0.44;
+    const INNER_D = GRID_UNITS_D * PITCH + 0.44;
+    const OUTER_W = INNER_W + 2.30;
+    const OUTER_D = INNER_D + 2.40;
+    const FRONT_BASE_H = 1.45;
+    const RUBBER_FOOT_H = 0.22;
+    const DECK_CENTER_Y = FRONT_BASE_H + (OUTER_D * 0.5) * Math.tan(TILT_RAD);
+
+    const blackMetalTex = createBrushedTextures([32, 34, 40], 'rgba(255, 232, 180, 0.045)');
+    const goldMetalTex = createBrushedTextures([222, 174, 72], 'rgba(255, 248, 220, 0.18)');
+
+    const obsidianAlumMat = new THREE.MeshStandardMaterial({
+      color: 0x3b3f4a, map: blackMetalTex.map, roughnessMap: blackMetalTex.rough,
+      bumpMap: blackMetalTex.rough, bumpScale: 0.016, metalness: 0.84, roughness: 0.30
+    });
+    const deepObsidianMat = new THREE.MeshStandardMaterial({
+      color: 0x262932, map: blackMetalTex.map, roughnessMap: blackMetalTex.rough, metalness: 0.80, roughness: 0.38
+    });
+    const brushedGoldMat = new THREE.MeshStandardMaterial({
+      color: 0xf5ca62, map: goldMetalTex.map, roughnessMap: goldMetalTex.rough,
+      bumpMap: goldMetalTex.rough, bumpScale: 0.012, metalness: 0.94, roughness: 0.20
+    });
+
+    let underglowStripMat = null, deskHaloMat = null, rackGlowStripMat = null;
+
+    function buildNoirGoldCase() {
+      const wedgeGeo = new THREE.ExtrudeGeometry(roundedRectShape(OUTER_W, OUTER_D, 1.05), {
+        depth: 1.0, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 3, curveSegments: 16
+      });
+      wedgeGeo.rotateX(-Math.PI / 2);
+      wedgeGeo.computeBoundingBox();
+      const minY = wedgeGeo.boundingBox.min.y, maxY = wedgeGeo.boundingBox.max.y;
+      const posAttr = wedgeGeo.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        const t = THREE.MathUtils.clamp((posAttr.getY(i) - minY) / (maxY - minY), 0, 1);
+        const topY = DECK_CENTER_Y - posAttr.getZ(i) * Math.tan(TILT_RAD) - 0.16;
+        posAttr.setY(i, RUBBER_FOOT_H + t * (topY - RUBBER_FOOT_H));
+      }
+      wedgeGeo.computeVertexNormals();
+      const bottomCase = new THREE.Mesh(wedgeGeo, deepObsidianMat);
+      bottomCase.castShadow = true; bottomCase.receiveShadow = true;
+      keyboardRoot.add(bottomCase);
+
+      const bandShape = roundedRectShape(OUTER_W + 0.16, OUTER_D + 0.16, 1.10);
+      bandShape.holes.push(roundedRectPath(OUTER_W - 0.14, OUTER_D - 0.14, 0.96));
+      const bandGeo = new THREE.ExtrudeGeometry(bandShape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 16 });
+      bandGeo.rotateX(-Math.PI / 2);
+      const goldBand = new THREE.Mesh(bandGeo, brushedGoldMat);
+      goldBand.position.y = RUBBER_FOOT_H + 0.34;
+      keyboardRoot.add(goldBand);
+
+      const stripShape = roundedRectShape(OUTER_W + 0.14, OUTER_D + 0.14, 1.08);
+      stripShape.holes.push(roundedRectPath(OUTER_W - 0.14, OUTER_D - 0.14, 0.96));
+      const stripGeo = new THREE.ExtrudeGeometry(stripShape, { depth: 0.12, bevelEnabled: false, curveSegments: 16 });
+      stripGeo.rotateX(-Math.PI / 2);
+      underglowStripMat = new THREE.MeshBasicMaterial({ color: 0xeab64d, transparent: true, opacity: 0.82 });
+      const stripMesh = new THREE.Mesh(stripGeo, underglowStripMat);
+      stripMesh.position.y = RUBBER_FOOT_H + 0.06;
+      keyboardRoot.add(stripMesh);
+
+      deskHaloMat = new THREE.MeshBasicMaterial({
+        color: 0xeab64d, map: glowSpriteTex, transparent: true, opacity: 0.30, blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const deskHalo = new THREE.Mesh(new THREE.PlaneGeometry(OUTER_W + 10, OUTER_D + 9), deskHaloMat);
+      deskHalo.rotation.x = -Math.PI / 2; deskHalo.position.y = 0.025;
+      keyboardRoot.add(deskHalo);
+
+      const footMat = new THREE.MeshStandardMaterial({ color: 0x090a0d, roughness: 0.95, metalness: 0.02 });
+      const footGeo = new THREE.CylinderGeometry(0.80, 0.88, RUBBER_FOOT_H + 0.06, 20);
+      const fx = OUTER_W * 0.5 - 2.2, fz = OUTER_D * 0.5 - 1.7;
+      [[-fx,-fz],[fx,-fz],[-fx,fz],[fx,fz]].forEach(([x, z]) => {
+        const foot = new THREE.Mesh(footGeo, footMat);
+        foot.position.set(x, (RUBBER_FOOT_H + 0.06) * 0.5, z);
+        foot.castShadow = true; foot.receiveShadow = true;
+        keyboardRoot.add(foot);
+      });
+
+      const portGroup = new THREE.Group();
+      portGroup.position.set(-9.0, 1.50, -(OUTER_D * 0.5 + 0.08));
+      const collar = new THREE.Mesh(new THREE.ExtrudeGeometry(roundedRectShape(1.56, 0.72, 0.34), { depth: 0.14, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }), brushedGoldMat);
+      collar.position.z = -0.09; portGroup.add(collar);
+      const cavity = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.40, 0.24), new THREE.MeshStandardMaterial({ color: 0x030406, roughness: 0.9 }));
+      cavity.position.z = -0.02; portGroup.add(cavity);
+      const tongue = new THREE.Mesh(new THREE.BoxGeometry(0.80, 0.10, 0.22), brushedGoldMat);
+      tongue.position.z = -0.03; portGroup.add(tongue);
+      keyboardRoot.add(portGroup);
+    }
+    buildNoirGoldCase();
+
+    const deckGroup = new THREE.Group();
+    deckGroup.position.set(0, DECK_CENTER_Y, 0);
+    deckGroup.rotation.x = TILT_RAD;
+    keyboardRoot.add(deckGroup);
+
+    const indicatorStates = { CapsLock: false, Fn: true };
+    const indicatorMeshes = {};
+
+    function buildTopBezelAndPlate() {
+      const tiltedOuterD = OUTER_D / Math.cos(TILT_RAD);
+      const bezelShape = roundedRectShape(OUTER_W, tiltedOuterD, 1.05);
+      bezelShape.holes.push(roundedRectPath(INNER_W, INNER_D, 0.32));
+      const bezelGeo = new THREE.ExtrudeGeometry(bezelShape, { depth: 0.58, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 3, curveSegments: 16 });
+      bezelGeo.rotateX(-Math.PI / 2);
+      const bezelMesh = new THREE.Mesh(bezelGeo, obsidianAlumMat);
+      bezelMesh.position.y = -0.58; bezelMesh.castShadow = true; bezelMesh.receiveShadow = true;
+      deckGroup.add(bezelMesh);
+
+      const goldTrimShape = roundedRectShape(INNER_W + 0.34, INNER_D + 0.34, 0.42);
+      goldTrimShape.holes.push(roundedRectPath(INNER_W - 0.02, INNER_D - 0.02, 0.30));
+      const goldTrimGeo = new THREE.ExtrudeGeometry(goldTrimShape, { depth: 0.10, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 2, curveSegments: 12 });
+      goldTrimGeo.rotateX(-Math.PI / 2);
+      const goldTrimMesh = new THREE.Mesh(goldTrimGeo, brushedGoldMat);
+      goldTrimMesh.position.y = -0.02;
+      deckGroup.add(goldTrimMesh);
+
+      const accentBar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.05, 0.14), brushedGoldMat);
+      accentBar.position.set(OUTER_W * 0.5 - 3.4, 0.075, tiltedOuterD * 0.5 - 0.55);
+      deckGroup.add(accentBar);
+
+      const ledGeo = new THREE.BoxGeometry(0.55, 0.06, 0.16);
+      [['CapsLock', OUTER_W * 0.5 - 4.4], ['Fn', OUTER_W * 0.5 - 2.9]].forEach(([code, lx]) => {
+        const on = indicatorStates[code];
+        const led = new THREE.Mesh(ledGeo, new THREE.MeshStandardMaterial({
+          color: on ? 0xf9dc94 : 0x1c1d24, emissive: on ? 0xeab64d : 0x000000, emissiveIntensity: on ? 2.6 : 0.0, roughness: 0.2
+        }));
+        led.position.set(lx, 0.075, -(tiltedOuterD * 0.5 - 0.55));
+        deckGroup.add(led); indicatorMeshes[code] = led;
+      });
+
+      const plateMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(INNER_W + 0.1, INNER_D + 0.1),
+        new THREE.MeshStandardMaterial({ map: createNoirGoldPlateTexture(INNER_W, INNER_D), roughness: 0.42, metalness: 0.72 })
+      );
+      plateMesh.rotation.x = -Math.PI / 2; plateMesh.position.y = -0.56; plateMesh.receiveShadow = true;
+      deckGroup.add(plateMesh);
+    }
+    buildTopBezelAndPlate();
+
+    function toggleIndicator(code) {
+      if (!(code in indicatorStates)) return;
+      indicatorStates[code] = !indicatorStates[code];
+      const on = indicatorStates[code], led = indicatorMeshes[code];
+      led.material.color.setHex(on ? 0xf9dc94 : 0x1c1d24);
+      led.material.emissive.setHex(on ? 0xeab64d : 0x000000);
+      led.material.emissiveIntensity = on ? 2.6 : 0.0;
+    }
+
+    // =========================================================================
+    // 6. INSTANCED SWITCHES (84 GOLD MX STEMS + RGB LEDS + STABILIZERS)
+    // =========================================================================
+    const PLATE_Y = -0.56;
+    const dummy = new THREE.Object3D();
+
+    const swBottomInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1.36, 0.28, 1.36), new THREE.MeshStandardMaterial({ color: 0x0d0e13, roughness: 0.58, metalness: 0.16 }), KEY_COUNT);
+    swBottomInst.castShadow = true; swBottomInst.receiveShadow = true; swBottomInst.frustumCulled = false;
+
+    const swTopGeo = new THREE.CylinderGeometry(0.66, 0.86, 0.34, 4); swTopGeo.rotateY(Math.PI / 4);
+    const swTopInst = new THREE.InstancedMesh(swTopGeo, new THREE.MeshPhysicalMaterial({ color: 0x262934, roughness: 0.18, metalness: 0.14, transparent: true, opacity: 0.68, clearcoat: 0.9 }), KEY_COUNT);
+    swTopInst.frustumCulled = false;
+
+    const sb1 = new THREE.BoxGeometry(0.44, 0.36, 0.125), sb2 = new THREE.BoxGeometry(0.125, 0.36, 0.44), sb3 = new THREE.BoxGeometry(0.56, 0.14, 0.56);
+    sb3.translate(0, -0.14, 0);
+    const swStemInst = new THREE.InstancedMesh(mergeGeometries([sb1, sb2, sb3]), new THREE.MeshStandardMaterial({ color: 0xf4c453, roughness: 0.24, metalness: 0.78 }), KEY_COUNT);
+    swStemInst.castShadow = true; swStemInst.frustumCulled = false;
+
+    const swLedInst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.48, 0.10, 0.16), new THREE.MeshBasicMaterial({ color: 0xffffff }), KEY_COUNT);
+    swLedInst.frustumCulled = false;
+
+    const swGlowGeo = new THREE.PlaneGeometry(3.0, 3.0); swGlowGeo.rotateX(-Math.PI / 2);
+    const swGlowInst = new THREE.InstancedMesh(swGlowGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, map: glowSpriteTex, transparent: true, opacity: 0.68, blending: THREE.AdditiveBlending, depthWrite: false }), KEY_COUNT);
+    swGlowInst.frustumCulled = false;
+
+    const stabPositions = [];
+    const initColor = new THREE.Color(0x523c10);
+
+    KEYS.forEach((k, i) => {
+      const zScale = k.kh < 0.6 ? 0.54 : k.kh < 0.85 ? 0.80 : 1.0;
+      const stemScale = k.kh < 0.6 ? 0.75 : 1.0;
+      dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, zScale);
+      dummy.position.set(k.plateX, PLATE_Y + 0.14, k.plateZ); dummy.updateMatrix(); swBottomInst.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(k.plateX, PLATE_Y + 0.44, k.plateZ); dummy.updateMatrix(); swTopInst.setMatrixAt(i, dummy.matrix);
+      dummy.scale.set(stemScale, 1, stemScale);
+      dummy.position.set(k.plateX, PLATE_Y + 0.76, k.plateZ); dummy.updateMatrix(); swStemInst.setMatrixAt(i, dummy.matrix);
+      dummy.scale.set(1, 1, zScale);
+      dummy.position.set(k.plateX, PLATE_Y + 0.34, k.plateZ - 0.42 * zScale); dummy.updateMatrix(); swLedInst.setMatrixAt(i, dummy.matrix); swLedInst.setColorAt(i, initColor);
+      dummy.position.set(k.plateX, PLATE_Y + 0.014, k.plateZ); dummy.updateMatrix(); swGlowInst.setMatrixAt(i, dummy.matrix); swGlowInst.setColorAt(i, initColor);
+      if (k.kw >= 2) {
+        const off = k.kw >= 6 ? 5.0 : 1.19;
+        stabPositions.push([k.plateX - off, k.plateZ], [k.plateX + off, k.plateZ]);
+      }
+    });
+
+    swBottomInst.instanceMatrix.needsUpdate = true; swTopInst.instanceMatrix.needsUpdate = true;
+    swStemInst.instanceMatrix.needsUpdate = true; swLedInst.instanceMatrix.needsUpdate = true;
+    swLedInst.instanceColor.needsUpdate = true; swGlowInst.instanceMatrix.needsUpdate = true;
+    swGlowInst.instanceColor.needsUpdate = true;
+    deckGroup.add(swBottomInst, swTopInst, swStemInst, swLedInst, swGlowInst);
+
+    const stabBox = new THREE.BoxGeometry(0.46, 0.38, 0.84), sc1 = new THREE.BoxGeometry(0.36, 0.28, 0.11), sc2 = new THREE.BoxGeometry(0.11, 0.28, 0.36);
+    sc1.translate(0, 0.24, 0); sc2.translate(0, 0.24, 0);
+    const stabInst = new THREE.InstancedMesh(mergeGeometries([stabBox, sc1, sc2]), new THREE.MeshStandardMaterial({ color: 0xb88b2e, metalness: 0.72, roughness: 0.30 }), stabPositions.length);
+    stabPositions.forEach(([sx, sz], idx) => {
+      dummy.position.set(sx, PLATE_Y + 0.22, sz); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
+      stabInst.setMatrixAt(idx, dummy.matrix);
+    });
+    stabInst.instanceMatrix.needsUpdate = true; stabInst.frustumCulled = false;
+    deckGroup.add(stabInst);
+
+    // =========================================================================
+    // 7. ARTISAN ROUNDED SCULPTED KEYCAPS & LUMINOUS ATLAS
+    // =========================================================================
+    const ATLAS_COLS = 12, ATLAS_ROWS = 7, ATLAS_W = 2048, ATLAS_H = 1280;
+
+    function getKeyPalette(k) {
+      const jewel = ELEMENT_META[k.group].css;
+      if (k.group === 'esc' || k.group === 'enter') {
+        return { baseHex: 0xdfa83b, topGradA: '#f8d47a', topGradB: '#b9811e', text: '#0c0d11', glow: 'rgba(255,245,200,0.45)', rim: 'rgba(255,248,220,0.65)', accentBar: '#0c0d11', isGold: true };
+      }
+      if (k.group === 'mod' || k.group === 'nav') {
+        return { baseHex: 0x101218, topGradA: '#1c202c', topGradB: '#0c0e14', text: '#f5d484', glow: jewel, rim: 'rgba(234,182,77,0.34)', accentBar: jewel, isGold: false };
+      }
+      if (k.group === 'arrow') {
+        return { baseHex: 0x13161f, topGradA: '#202636', topGradB: '#0e1118', text: '#6ee7b7', glow: '#10b981', rim: 'rgba(16,185,129,0.50)', accentBar: '#10b981', isGold: false };
+      }
+      return { baseHex: 0x141720, topGradA: '#222736', topGradB: '#10131b', text: '#fae2a0', glow: jewel, rim: 'rgba(234,182,77,0.36)', accentBar: jewel, isGold: false };
+    }
+
+    const keyUvRects = new Float32Array(KEY_COUNT * 4);
+    function buildArtisanLegendAtlas() {
+      const c = document.createElement('canvas'); c.width = ATLAS_W; c.height = ATLAS_H;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#12151d'; ctx.fillRect(0, 0, ATLAS_W, ATLAS_H);
+      const cellW = ATLAS_W / ATLAS_COLS, cellH = ATLAS_H / ATLAS_ROWS;
+      const padU = 2 / ATLAS_W, padV = 2 / ATLAS_H;
+      const rRect = (x, y, w, h, r) => {
+        ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+      };
+
+      KEYS.forEach((k, i) => {
+        const col = i % ATLAS_COLS, row = Math.floor(i / ATLAS_COLS);
+        const x0 = col * cellW, y0 = row * cellH, pal = getKeyPalette(k);
+        ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, cellW, cellH); ctx.clip();
+        const cx = x0 + cellW * 0.5, cy = y0 + cellH * 0.5;
+        const diag = ctx.createLinearGradient(x0, y0, x0 + cellW, y0 + cellH);
+        diag.addColorStop(0, pal.topGradA); diag.addColorStop(0.55, pal.topGradB); diag.addColorStop(1, pal.topGradA);
+        ctx.fillStyle = diag; ctx.fillRect(x0, y0, cellW, cellH);
+
+        const dish = ctx.createRadialGradient(cx, cy - cellH * 0.08, cellW * 0.05, cx, cy, cellW * 0.52);
+        dish.addColorStop(0, pal.isGold ? 'rgba(255,250,230,0.22)' : 'rgba(255,235,190,0.06)');
+        dish.addColorStop(1, 'rgba(0,0,0,0.22)');
+        ctx.fillStyle = dish; ctx.fillRect(x0, y0, cellW, cellH);
+
+        const aspect = k.keyW / k.keyD;
+        ctx.translate(cx, cy);
+        if (aspect > 1.05) ctx.scale(1 / aspect, 1);
+        else if (aspect < 0.95) ctx.scale(1, aspect);
+
+        const bw = (aspect > 1.05 ? cellW * aspect : cellW) - 22;
+        const bh = (aspect < 0.95 ? cellH / aspect : cellH) - 22;
+        rRect(-bw * 0.5, -bh * 0.5, bw, bh, Math.min(22, bh * 0.35));
+        ctx.strokeStyle = pal.rim; ctx.lineWidth = 3.2; ctx.stroke();
+
+        if (k.kh >= 0.7) {
+          const barW = Math.min(bw * 0.42, 46);
+          ctx.save(); ctx.shadowColor = pal.accentBar; ctx.shadowBlur = 12; ctx.fillStyle = pal.accentBar;
+          rRect(-barW * 0.5, bh * 0.5 - 12, barW, 4.5, 2.5); ctx.fill(); ctx.restore();
+        }
+        if (pal.isGold) {
+          ctx.fillStyle = 'rgba(12,13,17,0.42)';
+          [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sy]) => {
+            ctx.beginPath(); ctx.arc(sx * (bw * 0.5 - 14), sy * (bh * 0.5 - 14), 3, 0, Math.PI * 2); ctx.fill();
+          });
+        }
+
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = pal.isGold ? 'rgba(255,255,255,0.35)' : pal.glow;
+        ctx.shadowBlur = pal.isGold ? 4 : 11;
+
+        if (k.group === 'space') {
+          const sg = ctx.createLinearGradient(-150, 0, 150, 0);
+          sg.addColorStop(0, 'rgba(234,182,77,0.08)'); sg.addColorStop(0.25, '#eab64d');
+          sg.addColorStop(0.5, '#fff4cc'); sg.addColorStop(0.75, '#eab64d'); sg.addColorStop(1, 'rgba(234,182,77,0.08)');
+          ctx.fillStyle = sg; rRect(-145, -3.5, 290, 7, 3.5); ctx.fill();
+          ctx.fillStyle = '#fff9e6'; ctx.beginPath();
+          ctx.moveTo(0,-13); ctx.lineTo(10,0); ctx.lineTo(0,13); ctx.lineTo(-10,0); ctx.closePath(); ctx.fill();
+        } else if (k.sub) {
+          ctx.font = '600 36px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.fillStyle = 'rgba(250,224,158,0.72)'; ctx.fillText(k.sub, 0, -28);
+          ctx.font = '800 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+          ctx.fillStyle = pal.text; ctx.fillText(k.label, 0, 20);
+        } else {
+          const len = k.label.length;
+          const fontSize = k.kh < 0.6 ? 52 : len === 1 ? 66 : len <= 3 ? 42 : len === 4 ? 36 : 30;
+          ctx.font = `800 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+          ctx.fillStyle = pal.text; ctx.fillText(k.label, 0, k.kh < 0.6 ? 2 : -2);
+        }
+        ctx.restore();
+
+        keyUvRects[i * 4 + 0] = col / ATLAS_COLS + padU;
+        keyUvRects[i * 4 + 1] = 1 - (row + 1) / ATLAS_ROWS + padV;
+        keyUvRects[i * 4 + 2] = 1 / ATLAS_COLS - padU * 2;
+        keyUvRects[i * 4 + 3] = 1 / ATLAS_ROWS - padV * 2;
+      });
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      return tex;
+    }
+
+    const legendAtlasTex = buildArtisanLegendAtlas();
+    const TOP_SCALE_X = 0.85, TOP_SCALE_Z = 0.83, KEY_CORNER_R = 0.16;
+
+    function createSculptedKeycapBaseGeometry() {
+      const geo = new THREE.BoxGeometry(1, KEY_H, 1, 8, 5, 8);
+      geo.translate(0, KEY_H * 0.5, 0);
+      const pos = geo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        [x, z] = roundSquarePoint(x, z, KEY_CORNER_R);
+        const t = THREE.MathUtils.clamp(y / KEY_H, 0, 1);
+        const shoulder = t > 0.82 ? Math.pow((t - 0.82) / 0.18, 2) * 0.045 : 0;
+        const tCurve = Math.pow(t, 0.82);
+        x *= THREE.MathUtils.lerp(1.0, TOP_SCALE_X, tCurve) - shoulder;
+        z *= THREE.MathUtils.lerp(1.0, TOP_SCALE_Z, tCurve) - shoulder;
+        if (t > 0.90) y -= 0.042 * (1 - Math.min(1, (x * x + z * z) * 4.6));
+        pos.setXYZ(i, x, y, z);
+      }
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function createSculptedKeycapTopGeometry() {
+      const geo = new THREE.PlaneGeometry(1, 1, 8, 8);
+      geo.rotateX(-Math.PI / 2);
+      const pos = geo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let x = pos.getX(i), z = pos.getZ(i);
+        [x, z] = roundSquarePoint(x, z, KEY_CORNER_R);
+        x *= (TOP_SCALE_X - 0.048); z *= (TOP_SCALE_Z - 0.048);
+        const y = KEY_H + 0.008 - 0.042 * (1 - Math.min(1, (x * x + z * z) * 4.6));
+        pos.setXYZ(i, x, y, z);
+      }
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    const keycapBaseGeo = createSculptedKeycapBaseGeometry();
+    const keycapTopGeo = createSculptedKeycapTopGeometry();
+
+    const keycapBaseInst = new THREE.InstancedMesh(
+      keycapBaseGeo,
+      new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0.22, clearcoat: 0.55, clearcoatRoughness: 0.22 }),
+      KEY_COUNT
+    );
+    keycapBaseInst.castShadow = true; keycapBaseInst.receiveShadow = true; keycapBaseInst.frustumCulled = false;
+    scene.add(keycapBaseInst);
+
+    const keycapTopInstGeo = keycapTopGeo.clone();
+    keycapTopInstGeo.setAttribute('aUvRect', new THREE.InstancedBufferAttribute(keyUvRects, 4));
+    const keycapTopInstMat = new THREE.MeshPhysicalMaterial({
+      map: legendAtlasTex, emissive: 0xffffff, emissiveMap: legendAtlasTex, emissiveIntensity: 0.30,
+      roughness: 0.32, metalness: 0.16, clearcoat: 0.55, clearcoatRoughness: 0.20
+    });
+    keycapTopInstMat.onBeforeCompile = shader => {
+      shader.vertexShader = 'attribute vec4 aUvRect;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', '#ifdef USE_UV\n vUv = uv * aUvRect.zw + aUvRect.xy;\n#endif');
+    };
+    const keycapTopInst = new THREE.InstancedMesh(keycapTopInstGeo, keycapTopInstMat, KEY_COUNT);
+    keycapTopInst.receiveShadow = true; keycapTopInst.frustumCulled = false;
+    scene.add(keycapTopInst);
+
+    KEYS.forEach((k, i) => keycapBaseInst.setColorAt(i, new THREE.Color(getKeyPalette(k).baseHex)));
+    keycapBaseInst.instanceColor.needsUpdate = true;
+
+    const animKeyGroup = new THREE.Group();
+    scene.add(animKeyGroup);
+
+    function createAnimatingKeyMesh(k) {
+      const grp = new THREE.Group(), pal = getKeyPalette(k);
+      const base = new THREE.Mesh(keycapBaseGeo, new THREE.MeshPhysicalMaterial({
+        color: pal.baseHex, roughness: pal.isGold ? 0.20 : 0.34, metalness: pal.isGold ? 0.88 : 0.22, clearcoat: 0.60, clearcoatRoughness: 0.20
+      }));
+      base.scale.set(k.keyW, 1, k.keyD); base.castShadow = true; base.receiveShadow = true;
+      grp.add(base);
+
+      const tGeo = keycapTopGeo.clone(), uv = tGeo.attributes.uv;
+      const u0 = keyUvRects[k.index*4], v0 = keyUvRects[k.index*4+1], du = keyUvRects[k.index*4+2], dv = keyUvRects[k.index*4+3];
+      for (let j = 0; j < uv.count; j++) uv.setXY(j, uv.getX(j) * du + u0, uv.getY(j) * dv + v0);
+      const top = new THREE.Mesh(tGeo, new THREE.MeshPhysicalMaterial({
+        map: legendAtlasTex, emissive: 0xffffff, emissiveMap: legendAtlasTex, emissiveIntensity: 0.32,
+        roughness: pal.isGold ? 0.22 : 0.32, metalness: pal.isGold ? 0.55 : 0.16, clearcoat: 0.60, clearcoatRoughness: 0.20
+      }));
+      top.scale.set(k.keyW, 1, k.keyD);
+      grp.add(top);
+      return grp;
+    }
+
+    // =========================================================================
+    // 8. UNIFIED CURVED-EDGE CRYSTAL SHOWCASE OUTLET + 84 HINGED GLASS CASES
+    // =========================================================================
+    const caseRackGroup = new THREE.Group();
+    caseRackGroup.position.set(0, 8.8, -8.8);
+    caseRackGroup.rotation.x = RACK_TILT_RAD;
+    scene.add(caseRackGroup);
+
+    function buildUnifiedCurvedOutletTray() {
+      const TRAY_INNER_W = 36.8, TRAY_INNER_D = 17.8, TRAY_OUTER_W = 39.0, TRAY_OUTER_D = 20.0;
+
+      const outerFrameShape = roundedRectShape(TRAY_OUTER_W, TRAY_OUTER_D, 1.45);
+      outerFrameShape.holes.push(roundedRectPath(TRAY_INNER_W, TRAY_INNER_D, 0.90));
+      const outerFrameGeo = new THREE.ExtrudeGeometry(outerFrameShape, { depth: 0.56, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.08, bevelSegments: 3, curveSegments: 18 });
+      outerFrameGeo.rotateX(-Math.PI / 2);
+      const outerFrameMesh = new THREE.Mesh(outerFrameGeo, obsidianAlumMat);
+      outerFrameMesh.position.y = -0.46; outerFrameMesh.castShadow = true; outerFrameMesh.receiveShadow = true;
+      caseRackGroup.add(outerFrameMesh);
+
+      const goldRimShape = roundedRectShape(TRAY_INNER_W + 0.30, TRAY_INNER_D + 0.30, 0.98);
+      goldRimShape.holes.push(roundedRectPath(TRAY_INNER_W - 0.04, TRAY_INNER_D - 0.04, 0.86));
+      const goldRimGeo = new THREE.ExtrudeGeometry(goldRimShape, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 2, curveSegments: 16 });
+      goldRimGeo.rotateX(-Math.PI / 2);
+      const goldRimMesh = new THREE.Mesh(goldRimGeo, brushedGoldMat);
+      goldRimMesh.position.y = 0.05;
+      caseRackGroup.add(goldRimMesh);
+
+      const outerGoldShape = roundedRectShape(TRAY_OUTER_W + 0.16, TRAY_OUTER_D + 0.16, 1.50);
+      outerGoldShape.holes.push(roundedRectPath(TRAY_OUTER_W - 0.12, TRAY_OUTER_D - 0.12, 1.38));
+      const outerGoldGeo = new THREE.ExtrudeGeometry(outerGoldShape, { depth: 0.10, bevelEnabled: false, curveSegments: 18 });
+      outerGoldGeo.rotateX(-Math.PI / 2);
+      const outerGoldMesh = new THREE.Mesh(outerGoldGeo, brushedGoldMat);
+      outerGoldMesh.position.y = -0.22;
+      caseRackGroup.add(outerGoldMesh);
+
+      const clearBedGeo = new THREE.ShapeGeometry(roundedRectShape(TRAY_INNER_W, TRAY_INNER_D, 0.90), 16);
+      clearBedGeo.rotateX(-Math.PI / 2);
+      const clearBedMesh = new THREE.Mesh(clearBedGeo, new THREE.MeshPhysicalMaterial({
+        color: 0x161a24, roughness: 0.06, metalness: 0.12, clearcoat: 1.0, clearcoatRoughness: 0.04, transparent: true, opacity: 0.30, depthWrite: false
+      }));
+      clearBedMesh.position.y = -0.10; clearBedMesh.receiveShadow = true;
+      caseRackGroup.add(clearBedMesh);
+
+      const rackStripShape = roundedRectShape(TRAY_OUTER_W + 0.12, TRAY_OUTER_D + 0.12, 1.48);
+      rackStripShape.holes.push(roundedRectPath(TRAY_OUTER_W - 0.12, TRAY_OUTER_D - 0.12, 1.36));
+      const rackStripGeo = new THREE.ExtrudeGeometry(rackStripShape, { depth: 0.08, bevelEnabled: false, curveSegments: 18 });
+      rackStripGeo.rotateX(-Math.PI / 2);
+      rackGlowStripMat = new THREE.MeshBasicMaterial({ color: 0xeab64d, transparent: true, opacity: 0.72 });
+      const rackStripMesh = new THREE.Mesh(rackStripGeo, rackGlowStripMat);
+      rackStripMesh.position.y = -0.46;
+      caseRackGroup.add(rackStripMesh);
+    }
+    buildUnifiedCurvedOutletTray();
+
+    const caseBaseInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, CASE_BASE_T, 1), new THREE.MeshStandardMaterial({ color: 0x0c0e13, metalness: 0.65, roughness: 0.26 }), KEY_COUNT);
+    caseBaseInst.receiveShadow = true; caseBaseInst.frustumCulled = false;
+
+    function createRectOutlineGeo(th = 0.042, h = 0.11, pad = 0.52) {
+      const f = new THREE.BoxGeometry(pad*2, h, th); f.translate(0, 0, pad);
+      const b = new THREE.BoxGeometry(pad*2, h, th); b.translate(0, 0, -pad);
+      const l = new THREE.BoxGeometry(th, h, pad*2); l.translate(-pad, 0, 0);
+      const r = new THREE.BoxGeometry(th, h, pad*2); r.translate(pad, 0, 0);
+      return mergeGeometries([f, b, l, r]);
+    }
+    const caseGlowInst = new THREE.InstancedMesh(createRectOutlineGeo(0.042, 0.11, 0.52), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false }), KEY_COUNT);
+    caseGlowInst.frustumCulled = false;
+
+    function createCaseWallsGeo() {
+      const t = 0.044, h = CASE_H - CASE_BASE_T;
+      const f = new THREE.BoxGeometry(1, h, t); f.translate(0, h*0.5, 0.5 - t*0.5);
+      const b = new THREE.BoxGeometry(1, h, t); b.translate(0, h*0.5, -0.5 + t*0.5);
+      const l = new THREE.BoxGeometry(t, h, 1 - t*2); l.translate(-0.5 + t*0.5, h*0.5, 0);
+      const r = new THREE.BoxGeometry(t, h, 1 - t*2); r.translate(0.5 - t*0.5, h*0.5, 0);
+      return mergeGeometries([f, b, l, r]);
+    }
+    const caseWallsInst = new THREE.InstancedMesh(createCaseWallsGeo(), new THREE.MeshPhysicalMaterial({ color: 0xffefd6, roughness: 0.05, metalness: 0.10, clearcoat: 1.0, clearcoatRoughness: 0.03, transparent: true, opacity: 0.15, depthWrite: false }), KEY_COUNT);
+    caseWallsInst.frustumCulled = false;
+
+    function createCaseLidGeo() {
+      const lidT = 0.05;
+      const top = new THREE.BoxGeometry(1, lidT, 1); top.translate(0, lidT*0.5, 0.5);
+      const fl = new THREE.BoxGeometry(1, 0.11, 0.04); fl.translate(0, -0.025, 0.975);
+      const ll = new THREE.BoxGeometry(0.04, 0.08, 0.95); ll.translate(-0.475, -0.02, 0.5);
+      const rl = new THREE.BoxGeometry(0.04, 0.08, 0.95); rl.translate(0.475, -0.02, 0.5);
+      return mergeGeometries([top, fl, ll, rl]);
+    }
+    const caseLidInst = new THREE.InstancedMesh(createCaseLidGeo(), new THREE.MeshPhysicalMaterial({ color: 0xfff5e0, roughness: 0.04, metalness: 0.10, clearcoat: 1.0, clearcoatRoughness: 0.03, transparent: true, opacity: 0.13, depthWrite: false }), KEY_COUNT);
+    caseLidInst.frustumCulled = false;
+
+    const hingeGeo = new THREE.CylinderGeometry(0.056, 0.056, 0.62, 10); hingeGeo.rotateZ(Math.PI / 2);
+    const caseHingeInst = new THREE.InstancedMesh(hingeGeo, brushedGoldMat, KEY_COUNT);
+    caseHingeInst.frustumCulled = false;
+
+    const hiddenMat = new THREE.MeshBasicMaterial({ visible: false });
+    const caseHitInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, CASE_H + 0.25, 1), hiddenMat, KEY_COUNT);
+    caseHitInst.frustumCulled = false;
+    const installedHitInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, KEY_H + 0.25, 1), hiddenMat, KEY_COUNT);
+    installedHitInst.frustumCulled = false;
+
+    caseRackGroup.add(caseBaseInst, caseGlowInst, caseWallsInst, caseLidInst, caseHingeInst, caseHitInst);
+    deckGroup.add(installedHitInst);
+
+    // =========================================================================
+    // 9. WORLD TRANSFORMS & 3D GAMEPLAY TARGET BEACON (TIMING RING + BEAM + ARC)
+    // =========================================================================
+    scene.updateMatrixWorld(true);
+
+    const _v1 = new THREE.Vector3(), _s1 = new THREE.Vector3(), _m1 = new THREE.Matrix4();
+    const _mHidden = new THREE.Matrix4().compose(new THREE.Vector3(0, -9999, 0), new THREE.Quaternion(), new THREE.Vector3(0.0001, 0.0001, 0.0001));
+
+    const rackWorldQuat = new THREE.Quaternion(); caseRackGroup.getWorldQuaternion(rackWorldQuat);
+    const deckWorldQuat = new THREE.Quaternion(); deckGroup.getWorldQuaternion(deckWorldQuat);
+    const rackUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(rackWorldQuat).normalize();
+    const deckUpWorld = new THREE.Vector3(0, 1, 0).applyQuaternion(deckWorldQuat).normalize();
+
+    function getStoredKeyWorldPos(k, outVec) {
+      outVec.set(k.rackX, k.caseLiftY + CASE_BASE_T + 0.02, k.rackZ);
+      return caseRackGroup.localToWorld(outVec);
+    }
+    function getInstalledKeyWorldPos(k, outVec, pressOffset = 0) {
+      outVec.set(k.plateX, PLATE_Y + 0.56 - pressOffset, k.plateZ);
+      return deckGroup.localToWorld(outVec);
+    }
+    KEYS.forEach(k => {
+      k.switchWorldPos = getInstalledKeyWorldPos(k, new THREE.Vector3(), 0);
+      k.caseWorldPos = caseRackGroup.localToWorld(new THREE.Vector3(k.rackX, CASE_H * 0.5, k.rackZ));
+    });
+
+    // Dedicated 3D Gameplay Target Visualizer (Shrinking Timing Ring + Switch Beacon Beam + Curved Arc!)
+    const targetCaseAnchor = new THREE.Group(); targetCaseAnchor.visible = false; caseRackGroup.add(targetCaseAnchor);
+    const targetLockRing = new THREE.Mesh(
+      createRectOutlineGeo(0.06, 0.05, 0.52),
+      new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.85, depthWrite: false })
+    );
+    const targetApproachRing = new THREE.Mesh(
+      createRectOutlineGeo(0.08, 0.05, 0.52),
+      new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.96, depthWrite: false })
+    );
+    targetCaseAnchor.add(targetLockRing, targetApproachRing);
+
+    const targetDeckAnchor = new THREE.Group(); targetDeckAnchor.visible = false; deckGroup.add(targetDeckAnchor);
+    const tBeamGeo = new THREE.CylinderGeometry(0.45, 0.82, 5.4, 24, 1, true); tBeamGeo.translate(0, 2.7, 0);
+    const targetBeam = new THREE.Mesh(tBeamGeo, new THREE.MeshBasicMaterial({
+      color: 0xeab64d, map: beamGradTex, transparent: true, opacity: 0.50, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    const tReticleGeo = new THREE.RingGeometry(0.76, 1.04, 36); tReticleGeo.rotateX(-Math.PI / 2);
+    const targetDeckRing = new THREE.Mesh(tReticleGeo, new THREE.MeshBasicMaterial({
+      color: 0xeab64d, transparent: true, opacity: 0.90, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    targetDeckRing.position.y = 0.08;
+    targetDeckAnchor.add(targetBeam, targetDeckRing);
+
+    const targetArcPos = new Float32Array(30 * 3);
+    const targetArcGeo = new THREE.BufferGeometry(); targetArcGeo.setAttribute('position', new THREE.BufferAttribute(targetArcPos, 3));
+    const targetArcLine = new THREE.Line(targetArcGeo, new THREE.LineBasicMaterial({ color: 0xeab64d, transparent: true, opacity: 0.52, blending: THREE.AdditiveBlending, depthWrite: false }));
+    targetArcLine.visible = false; targetArcLine.frustumCulled = false; scene.add(targetArcLine);
+
+    // Hover Link Visualizer
+    const hoverSwitchRing = new THREE.Mesh(tReticleGeo, new THREE.MeshBasicMaterial({ color: 0xeab64d, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    hoverSwitchRing.visible = false; deckGroup.add(hoverSwitchRing);
+
+    const hoverArcPos = new Float32Array(30 * 3);
+    const hoverArcGeo = new THREE.BufferGeometry(); hoverArcGeo.setAttribute('position', new THREE.BufferAttribute(hoverArcPos, 3));
+    const hoverArcLine = new THREE.Line(hoverArcGeo, new THREE.LineBasicMaterial({ color: 0xeab64d, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    hoverArcLine.visible = false; hoverArcLine.frustumCulled = false; scene.add(hoverArcLine);
+
+    function writeArc(geo, k) {
+      const p0 = getStoredKeyWorldPos(k, new THREE.Vector3()).addScaledVector(rackUpWorld, 0.9);
+      const p3 = k.switchWorldPos.clone().addScaledVector(deckUpWorld, 0.45);
+      const p1 = p0.clone().lerp(p3, 0.34); p1.y += 4.0;
+      const p2 = p0.clone().lerp(p3, 0.72); p2.y += 3.6;
+      const pts = new THREE.CatmullRomCurve3([p0, p1, p2, p3]).getPoints(29);
+      const attr = geo.attributes.position;
+      for (let i = 0; i < pts.length; i++) attr.setXYZ(i, pts[i].x, pts[i].y, pts[i].z);
+      attr.needsUpdate = true;
+    }
+
+    const caseIdleCol = new THREE.Color(0x362810), caseEmptyCol = new THREE.Color(0x0b0a08);
+    const _hoverCol = new THREE.Color(), _targetCol = new THREE.Color(), _tmpCol = new THREE.Color();
+    let casesDirty = true, keycapsDirty = true;
+
+    function updateCaseInstance(k) {
+      const i = k.index, ly = k.caseLiftY;
+      dummy.position.set(k.rackX, ly + CASE_BASE_T * 0.5, k.rackZ); dummy.rotation.set(0, 0, 0); dummy.scale.set(k.caseW, 1, k.caseD); dummy.updateMatrix();
+      caseBaseInst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(k.rackX, ly + 0.11, k.rackZ); dummy.scale.set(k.caseW, 1 + Math.max(k.caseHover, k.targetGlow) * 1.1, k.caseD); dummy.updateMatrix();
+      caseGlowInst.setMatrixAt(i, dummy.matrix);
+
+      _tmpCol.copy(k.state === 'stored' ? caseIdleCol : caseEmptyCol);
+      if (k.caseHover > 0.01) { _hoverCol.setHex(ELEMENT_META[k.group].hex); _tmpCol.lerp(_hoverCol, Math.min(1, k.caseHover)); }
+      if (k.targetGlow > 0.01) { _targetCol.setHex(k.targetColorHex); _tmpCol.lerp(_targetCol, Math.min(1, k.targetGlow)); }
+      caseGlowInst.setColorAt(i, _tmpCol);
+
+      dummy.position.set(k.rackX, ly + CASE_BASE_T, k.rackZ); dummy.scale.set(k.caseW, 1, k.caseD); dummy.updateMatrix();
+      caseWallsInst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(k.rackX, ly + CASE_H, k.rackZ - k.caseD * 0.5); dummy.rotation.set(k.lidAngle, 0, 0); dummy.scale.set(k.caseW, 1, k.caseD); dummy.updateMatrix();
+      caseLidInst.setMatrixAt(i, dummy.matrix);
+
+      dummy.position.set(k.rackX, ly + CASE_H, k.rackZ - k.caseD * 0.5); dummy.rotation.set(0, 0, 0); dummy.scale.set(Math.min(1.6, k.caseW * 0.5), 1, 1); dummy.updateMatrix();
+      caseHingeInst.setMatrixAt(i, dummy.matrix);
+
+      if (k.state === 'stored') {
+        dummy.position.set(k.rackX, ly + CASE_H * 0.5, k.rackZ); dummy.rotation.set(0, 0, 0); dummy.scale.set(k.caseW, 1, k.caseD); dummy.updateMatrix();
+        caseHitInst.setMatrixAt(i, dummy.matrix);
+      } else {
+        caseHitInst.setMatrixAt(i, _mHidden);
+      }
+    }
+
+    function updateKeycapInstance(k) {
+      const i = k.index;
+      if (k.animMesh) {
+        keycapBaseInst.setMatrixAt(i, _mHidden); keycapTopInst.setMatrixAt(i, _mHidden);
+      } else if (k.state === 'stored') {
+        getStoredKeyWorldPos(k, _v1); _s1.set(k.keyW, 1, k.keyD); _m1.compose(_v1, rackWorldQuat, _s1);
+        keycapBaseInst.setMatrixAt(i, _m1); keycapTopInst.setMatrixAt(i, _m1);
+      } else if (k.state === 'installed') {
+        getInstalledKeyWorldPos(k, _v1, k.pressY); _s1.set(k.keyW, 1, k.keyD); _m1.compose(_v1, deckWorldQuat, _s1);
+        keycapBaseInst.setMatrixAt(i, _m1); keycapTopInst.setMatrixAt(i, _m1);
+      }
+      if (k.state === 'installed') {
+        dummy.position.set(k.plateX, PLATE_Y + 0.56 + KEY_H * 0.5, k.plateZ); dummy.rotation.set(0, 0, 0); dummy.scale.set(k.keyW, 1, k.keyD); dummy.updateMatrix();
+        installedHitInst.setMatrixAt(i, dummy.matrix);
+      } else {
+        installedHitInst.setMatrixAt(i, _mHidden);
+      }
+    }
+
+    function flushInstanceUpdates() {
+      if (casesDirty) {
+        for (let i = 0; i < KEY_COUNT; i++) updateCaseInstance(KEYS[i]);
+        caseBaseInst.instanceMatrix.needsUpdate = true; caseGlowInst.instanceMatrix.needsUpdate = true;
+        caseGlowInst.instanceColor.needsUpdate = true; caseWallsInst.instanceMatrix.needsUpdate = true;
+        caseLidInst.instanceMatrix.needsUpdate = true; caseHingeInst.instanceMatrix.needsUpdate = true;
+        caseHitInst.instanceMatrix.needsUpdate = true;
+        casesDirty = false;
+      }
+      if (keycapsDirty) {
+        for (let i = 0; i < KEY_COUNT; i++) updateKeycapInstance(KEYS[i]);
+        keycapBaseInst.instanceMatrix.needsUpdate = true; keycapTopInst.instanceMatrix.needsUpdate = true;
+        installedHitInst.instanceMatrix.needsUpdate = true;
+        keycapsDirty = false;
+      }
+    }
+    flushInstanceUpdates();
+
+    // =========================================================================
+    // 10. VFX POOLS (SPARKS, SHOCKWAVE RINGS, DIAMONDS, PILLARS, SPACE WAVE)
+    // =========================================================================
+    const MAX_SPARKS = 1000;
+    const sparkPos = new Float32Array(MAX_SPARKS * 3), sparkCol = new Float32Array(MAX_SPARKS * 3);
+    const sparks = [];
+    for (let i = 0; i < MAX_SPARKS; i++) {
+      sparks.push({ alive: false, life: 0, maxLife: 1, vx: 0, vy: 0, vz: 0, r: 1, g: 1, b: 1, gravity: 17 });
+      sparkPos[i * 3 + 1] = -9999;
+    }
+    const sparkGeo = new THREE.BufferGeometry();
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+    sparkGeo.setAttribute('color', new THREE.BufferAttribute(sparkCol, 3));
+    const sparkPoints = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ size: 0.65, map: glowSpriteTex, vertexColors: true, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sparkPoints.frustumCulled = false; scene.add(sparkPoints);
+
+    let sparkCursor = 0;
+    function emitSparks(worldPos, colorHex, count = 24, dirWorld = null, speedMult = 1.0, floatUp = false) {
+      const col = new THREE.Color(colorHex);
+      for (let n = 0; n < count; n++) {
+        const idx = sparkCursor; sparkCursor = (sparkCursor + 1) % MAX_SPARKS;
+        const s = sparks[idx];
+        s.alive = true; s.life = 0;
+        s.maxLife = floatUp ? (0.55 + Math.random() * 0.45) : (0.36 + Math.random() * 0.38);
+        s.gravity = floatUp ? -3.5 : 17.5;
+        const angle = Math.random() * Math.PI * 2, speed = (2.6 + Math.random() * 6.8) * speedMult;
+        if (dirWorld) {
+          s.vx = dirWorld.x * (7 + Math.random() * 10) + (Math.random() - 0.5) * 2.8;
+          s.vy = 2.2 + Math.random() * 4.0;
+          s.vz = dirWorld.z * (7 + Math.random() * 10) + (Math.random() - 0.5) * 2.8;
+        } else if (floatUp) {
+          s.vx = Math.cos(angle) * (1.2 + Math.random() * 2.2); s.vy = 2.6 + Math.random() * 3.8; s.vz = Math.sin(angle) * (1.2 + Math.random() * 2.2);
+        } else {
+          s.vx = Math.cos(angle) * speed; s.vy = (4.4 + Math.random() * 7.2) * speedMult; s.vz = Math.sin(angle) * speed;
+        }
+        const boost = 0.9 + Math.random() * 0.35;
+        s.r = Math.min(1, col.r * boost); s.g = Math.min(1, col.g * boost); s.b = Math.min(1, col.b * boost);
+        sparkPos[idx*3] = worldPos.x + (Math.random()-0.5)*0.5;
+        sparkPos[idx*3+1] = worldPos.y + 0.16;
+        sparkPos[idx*3+2] = worldPos.z + (Math.random()-0.5)*0.5;
+      }
+    }
+
+    function updateSparks(dt) {
+      let anyAlive = false;
+      for (let i = 0; i < MAX_SPARKS; i++) {
+        const s = sparks[i]; if (!s.alive) continue; anyAlive = true;
+        s.life += dt;
+        if (s.life >= s.maxLife) { s.alive = false; sparkPos[i*3+1] = -9999; sparkCol[i*3]=sparkCol[i*3+1]=sparkCol[i*3+2]=0; continue; }
+        const t = THREE.MathUtils.clamp(s.life / s.maxLife, 0, 1);
+        s.vy -= s.gravity * dt; s.vx *= Math.pow(0.20, dt); s.vz *= Math.pow(0.20, dt);
+        sparkPos[i*3] += s.vx * dt; sparkPos[i*3+1] += s.vy * dt; sparkPos[i*3+2] += s.vz * dt;
+        const fade = Math.pow(Math.max(0, 1 - t), 1.45);
+        sparkCol[i*3] = s.r * fade; sparkCol[i*3+1] = s.g * fade; sparkCol[i*3+2] = s.b * fade;
+      }
+      if (anyAlive) { sparkGeo.attributes.position.needsUpdate = true; sparkGeo.attributes.color.needsUpdate = true; }
+    }
+
+    const ringPool = [];
+    const circleRingGeo = new THREE.RingGeometry(0.76, 1.0, 48); circleRingGeo.rotateX(-Math.PI / 2);
+    const diamondRingGeo = new THREE.RingGeometry(0.74, 1.0, 4); diamondRingGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 16; i++) {
+      const m = new THREE.Mesh(circleRingGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      m.visible = false; deckGroup.add(m); ringPool.push(m);
+    }
+    let ringCursor = 0;
+    function spawnExpandingRing(px, pz, colorHex, maxScale = 7.4, duration = 0.62, isDiamond = false, delay = 0) {
+      const ring = ringPool[ringCursor]; ringCursor = (ringCursor + 1) % ringPool.length;
+      gsap.killTweensOf(ring.scale); gsap.killTweensOf(ring.material);
+      ring.geometry = isDiamond ? diamondRingGeo : circleRingGeo;
+      ring.position.set(px, PLATE_Y + 0.24, pz); ring.rotation.y = isDiamond ? Math.PI / 4 : 0;
+      ring.scale.set(0.32, 1, 0.32); ring.material.color.setHex(colorHex); ring.material.opacity = 0; ring.visible = true;
+      gsap.to(ring.material, { opacity: 0.96, duration: 0.04, delay });
+      gsap.to(ring.scale, { x: maxScale, z: maxScale, duration, delay, ease: 'power2.out' });
+      gsap.to(ring.material, { opacity: 0, duration, delay: delay + 0.04, ease: 'power2.out', onComplete: () => { ring.visible = false; } });
+    }
+
+    const pillarPool = [];
+    const pillarGeo = new THREE.CylinderGeometry(0.42, 0.92, 6.0, 24, 1, true); pillarGeo.translate(0, 3.0, 0);
+    for (let i = 0; i < 8; i++) {
+      const p = new THREE.Mesh(pillarGeo, new THREE.MeshBasicMaterial({ color: 0xeab64d, map: beamGradTex, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      p.visible = false; deckGroup.add(p); pillarPool.push(p);
+    }
+    let pillarCursor = 0;
+    function spawnLightPillar(px, pz, colorHex, radiusScale = 1.0) {
+      const p = pillarPool[pillarCursor]; pillarCursor = (pillarCursor + 1) % pillarPool.length;
+      gsap.killTweensOf(p.scale); gsap.killTweensOf(p.material);
+      p.position.set(px, PLATE_Y + 0.12, pz); p.scale.set(radiusScale * 0.5, 0.25, radiusScale * 0.5);
+      p.material.color.setHex(colorHex); p.material.opacity = 0.85; p.visible = true;
+      gsap.to(p.scale, { x: radiusScale * 1.25, y: 1.15, z: radiusScale * 1.25, duration: 0.52, ease: 'power2.out' });
+      gsap.to(p.material, { opacity: 0, duration: 0.56, ease: 'power2.out', onComplete: () => { p.visible = false; } });
+    }
+
+    const spaceBarMesh = new THREE.Mesh(new THREE.PlaneGeometry(31, 3.0), new THREE.MeshBasicMaterial({ color: 0xf4c453, map: glowSpriteTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    spaceBarMesh.rotation.x = -Math.PI / 2; spaceBarMesh.position.set(0, PLATE_Y + 0.20, (4.94 - GRID_CENTER_Z) * PITCH);
+    spaceBarMesh.visible = false; deckGroup.add(spaceBarMesh);
+
+    const activeWaves = [];
+    const clock = new THREE.Clock();
+    const chassisAccent = { color: new THREE.Color(0xeab64d), targetColor: new THREE.Color(0xeab64d), boost: 0 };
+
+    // =========================================================================
+    // 11. GAMEPLAY ENGINE (♪ MELODY RUSH · ⚡ WORD FORGE · ✦ ZEN PLAY)
+    // =========================================================================
+    const MELODIES = [
+      {
+        name: '♪ NOIR ARPEGGIO',
+        codes: ['KeyQ','KeyE','KeyR','KeyT','KeyY','KeyU','KeyI','KeyO','KeyU','KeyY','KeyT','KeyR','Space','Enter']
+      },
+      {
+        name: '♪ GOLDEN WALTZ',
+        codes: ['KeyA','KeyD','KeyF','KeyG','KeyH','KeyJ','KeyK','KeyH','KeyG','KeyF','KeyD','Space','F1','Enter']
+      },
+      {
+        name: '♪ CRYSTAL MARIMBA',
+        codes: ['Digit1','Digit3','Digit5','Digit6','Digit8','Digit6','Digit5','Digit3','KeyR','KeyT','KeyY','ArrowUp','ArrowRight','Enter']
+      },
+      {
+        name: '♪ PAVILION GROOVE',
+        codes: ['KeyZ','KeyX','KeyC','KeyV','ShiftLeft','KeyR','KeyT','KeyY','Space','KeyA','KeyS','KeyD','F6','Enter']
+      }
+    ];
+
+    const WORDS = [
+      'GOLD', 'FORGE', 'MELODY', 'AURORA', 'NOIR', 'SYMPHONY', 'PAVILION',
+      'CRYSTAL', 'RHYTHM', 'SPARK', 'VELVET', 'HARMONY', 'KEYCAP', 'SOLAR'
+    ];
+
+    const game = {
+      mode: 'melody',          // 'melody' | 'word' | 'zen'
+      score: 0,
+      displayScore: 0,
+      bestScore: 0,
+      combo: 0,
+      fever: 0,                // 0..100
+      overdrive: false,
+      overdriveLeft: 0,
+      hits: 0,
+      attempts: 0,
+      melodyIdx: 0,
+      wordIdx: 0,
+      seqCodes: [],
+      seqPos: 0,
+      currentTargetKey: null,
+      targetStartTime: 0,
+      targetBeatWindow: 2.2,   // Silky repeating rhythm pulse ring (never punishes timeout!)
+      wordStartTime: 0,
+      wordsCleared: 0,
+      wpm: 0
+    };
+
+    // DOM Refs
+    const counterEl = document.getElementById('counter');
+    const rankPillEl = document.getElementById('rank-pill');
+    const progressEl = document.getElementById('progress-bar');
+    const hudModeTip = document.getElementById('hud-mode-tip');
+    const bestLabelEl = document.getElementById('best-label');
+    const hudCenter = document.getElementById('hud-center');
+    const scoreValEl = document.getElementById('score-val');
+    const comboRowEl = document.getElementById('combo-row');
+    const comboValEl = document.getElementById('combo-val');
+    const multChipEl = document.getElementById('mult-chip');
+    const feverLblEl = document.getElementById('fever-lbl');
+    const feverPctEl = document.getElementById('fever-pct');
+    const feverFillEl = document.getElementById('fever-fill');
+    const elOrb = document.getElementById('el-orb');
+    const elKey = document.getElementById('el-key');
+    const elSound = document.getElementById('el-sound');
+    const eqBars = Array.from(document.getElementById('eq-bars').children);
+    const overdriveVigEl = document.getElementById('overdrive-vignette');
+    const ribbonEl = document.getElementById('game-ribbon');
+    const ribbonTagEl = document.getElementById('ribbon-tag');
+    const ribbonKeysEl = document.getElementById('ribbon-keys');
+    const ribbonStatEl = document.getElementById('ribbon-stat');
+    const ribbonNextBtn = document.getElementById('ribbon-next-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const cascadeBtn = document.getElementById('cascade-btn');
+    const soundBtn = document.getElementById('sound-btn');
+    const viewBtn = document.getElementById('view-btn');
+    const toastEl = document.getElementById('key-toast');
+    const floatLayer = document.getElementById('float-layer');
+    const btnMelody = document.getElementById('mode-melody');
+    const btnWord = document.getElementById('mode-word');
+    const btnZen = document.getElementById('mode-zen');
+
+    const installedOrder = [];
+    let toastTimer = null, eqTimer = null;
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 1700);
+    }
+
+    function pulseEqualizer(cssColor) {
+      eqBars.forEach(bar => {
+        bar.style.background = cssColor;
+        bar.style.height = `${5 + Math.round(Math.random() * 11)}px`;
+      });
+      clearTimeout(eqTimer);
+      eqTimer = setTimeout(() => { eqBars.forEach(bar => { bar.style.height = '3px'; }); }, 210);
+    }
+
+    const _projVec = new THREE.Vector3();
+    function spawnFloatPopup(worldPos, title, sub, cssColor) {
+      _projVec.copy(worldPos).project(camera);
+      const sx = (_projVec.x * 0.5 + 0.5) * window.innerWidth;
+      const sy = (-_projVec.y * 0.5 + 0.5) * window.innerHeight;
+      const el = document.createElement('div');
+      el.className = 'float-tag';
+      el.style.left = `${THREE.MathUtils.clamp(sx, 90, window.innerWidth - 90)}px`;
+      el.style.top = `${THREE.MathUtils.clamp(sy - 18, 76, window.innerHeight - 76)}px`;
+      el.style.color = cssColor;
+      el.innerHTML = `<span class="float-grade">${title}</span>${sub ? `<span class="float-sub">${sub}</span>` : ''}`;
+      floatLayer.appendChild(el);
+      setTimeout(() => el.remove(), 940);
+    }
+
+    function getMult() {
+      const base = game.combo >= 24 ? 4 : game.combo >= 12 ? 3 : game.combo >= 5 ? 2 : 1;
+      return game.overdrive ? base * 2 : base;
+    }
+
+    function getRank() {
+      if (game.score >= 20000) return 'RANK S+';
+      if (game.score >= 10000) return 'RANK S';
+      if (game.score >= 4500)  return 'RANK A';
+      if (game.score >= 1500)  return 'RANK B';
+      return 'RANK C';
+    }
+
+    function addScore(pts) {
+      game.score += pts;
+      if (game.score > game.bestScore) game.bestScore = game.score;
+      gsap.to(game, {
+        displayScore: game.score,
+        duration: 0.30,
+        ease: 'power2.out',
+        onUpdate: () => { scoreValEl.textContent = Math.round(game.displayScore).toLocaleString(); }
+      });
+    }
+
+    function shortKeyText(code) {
+      const k = KEY_BY_CODE.get(code);
+      if (!k) return code;
+      if (k.group === 'space') return 'SPC';
+      if (k.code === 'Enter') return 'ENT';
+      if (k.code === 'ShiftLeft') return 'SHF';
+      return k.label || code;
+    }
+
+    function renderGameRibbon() {
+      if (game.mode === 'zen') {
+        ribbonEl.classList.remove('visible');
+        return;
+      }
+      ribbonEl.classList.add('visible');
+
+      if (game.mode === 'melody') {
+        const song = MELODIES[game.melodyIdx % MELODIES.length];
+        ribbonTagEl.textContent = song.name;
+        const start = Math.max(0, game.seqPos - 2);
+        const end = Math.min(game.seqCodes.length, start + 8);
+        ribbonKeysEl.innerHTML = '';
+        for (let i = start; i < end; i++) {
+          const tile = document.createElement('span');
+          tile.className = 'r-tile' + (i < game.seqPos ? ' done' : i === game.seqPos ? ' current' : '');
+          tile.textContent = shortKeyText(game.seqCodes[i]);
+          ribbonKeysEl.appendChild(tile);
+        }
+        const acc = game.attempts > 0 ? Math.round((game.hits / game.attempts) * 100) : 100;
+        ribbonStatEl.textContent = `ACC ${acc}%`;
+      } else if (game.mode === 'word') {
+        ribbonTagEl.textContent = `⚡ WORD ${game.wordsCleared + 1}`;
+        ribbonKeysEl.innerHTML = '';
+        for (let i = 0; i < game.seqCodes.length; i++) {
+          const tile = document.createElement('span');
+          tile.className = 'r-tile' + (i < game.seqPos ? ' done' : i === game.seqPos ? ' current' : '');
+          tile.textContent = shortKeyText(game.seqCodes[i]);
+          ribbonKeysEl.appendChild(tile);
+        }
+        ribbonStatEl.textContent = game.wpm > 0 ? `${game.wpm} WPM` : 'TYPE!';
+      }
+    }
+
+    function clearActiveTargetVisual() {
+      if (game.currentTargetKey) {
+        const prev = game.currentTargetKey;
+        prev.targetGlow = 0;
+        if (prev.state === 'stored' && !prev.introTl && hoveredKey !== prev) {
+          gsap.to(prev, { caseLiftY: 0, lidAngle: 0, duration: 0.24, ease: 'power2.out', onUpdate: () => { casesDirty = true; keycapsDirty = true; } });
+        }
+        game.currentTargetKey = null;
+      }
+      targetCaseAnchor.visible = false;
+      targetDeckAnchor.visible = false;
+      targetArcLine.visible = false;
+      casesDirty = true;
+    }
+
+    function activateCurrentSequenceTarget() {
+      clearActiveTargetVisual();
+      if (game.mode === 'zen') return;
+      const code = game.seqCodes[game.seqPos];
+      const k = KEY_BY_CODE.get(code);
+      if (!k) return;
+
+      game.currentTargetKey = k;
+      game.targetStartTime = clock.getElapsedTime();
+
+      // Highlight glass case (if stored) & switch beacon on keyboard deck!
+      if (k.state === 'stored') {
+        if (k.introTl) { k.introTl.kill(); k.introTl = null; }
+        gsap.to(k, {
+          caseLiftY: 0.56,
+          lidAngle: -THREE.MathUtils.degToRad(32),
+          duration: 0.26,
+          ease: 'back.out(1.7)',
+          onUpdate: () => { casesDirty = true; keycapsDirty = true; }
+        });
+        targetCaseAnchor.visible = true;
+        targetArcLine.visible = true;
+        writeArc(targetArcGeo, k);
+      } else {
+        // Key is already installed on the keyboard -> spotlight directly on the installed keycap!
+        targetCaseAnchor.visible = false;
+        targetArcLine.visible = false;
+      }
+
+      targetDeckAnchor.visible = true;
+      targetDeckAnchor.position.set(k.plateX, PLATE_Y + 0.08, k.plateZ);
+      casesDirty = true;
+      renderGameRibbon();
+    }
+
+    function loadMelody(idx) {
+      game.melodyIdx = idx % MELODIES.length;
+      game.seqCodes = MELODIES[game.melodyIdx].codes.slice();
+      game.seqPos = 0;
+      activateCurrentSequenceTarget();
+    }
+
+    function loadWord(idx) {
+      game.wordIdx = idx % WORDS.length;
+      const word = WORDS[game.wordIdx];
+      game.seqCodes = word.split('').map(ch => 'Key' + ch).concat(['Space']);
+      game.seqPos = 0;
+      game.wordStartTime = clock.getElapsedTime();
+      activateCurrentSequenceTarget();
+    }
+
+    function setGameMode(mode) {
+      game.mode = mode;
+      btnMelody.classList.toggle('active', mode === 'melody');
+      btnWord.classList.toggle('active', mode === 'word');
+      btnZen.classList.toggle('active', mode === 'zen');
+
+      if (mode === 'melody') {
+        hudModeTip.textContent = 'Hit the glowing key in the GOLD ring!';
+        loadMelody(game.melodyIdx);
+      } else if (mode === 'word') {
+        hudModeTip.textContent = 'Type the glowing gold words to forge keys';
+        loadWord(game.wordIdx);
+      } else {
+        hudModeTip.textContent = 'Free Zen Studio — tap any key to jam';
+        clearActiveTargetVisual();
+        renderGameRibbon();
+      }
+      updateHUD();
+    }
+
+    function updateHUD() {
+      let count = 0;
+      for (let i = 0; i < KEY_COUNT; i++) if (KEYS[i].state === 'installed') count++;
+      counterEl.textContent = `${count} / ${KEY_COUNT}`;
+      rankPillEl.textContent = getRank();
+      progressEl.style.width = `${(count / KEY_COUNT) * 100}%`;
+      bestLabelEl.textContent = `BEST ${game.bestScore.toLocaleString()}`;
+      resetBtn.disabled = count === 0 && installedOrder.length === 0;
+      cascadeBtn.disabled = count === KEY_COUNT;
+
+      comboValEl.textContent = String(game.combo);
+      const mult = getMult();
+      multChipEl.textContent = `×${mult}`;
+      multChipEl.classList.toggle('overdrive', game.overdrive);
+
+      const fPct = Math.round(game.overdrive ? (game.overdriveLeft / 8.0) * 100 : game.fever);
+      feverFillEl.style.width = `${THREE.MathUtils.clamp(fPct, 0, 100)}%`;
+      feverFillEl.classList.toggle('overdrive', game.overdrive);
+      feverPctEl.textContent = game.overdrive ? 'MAX!' : `${fPct}%`;
+      feverLblEl.textContent = game.overdrive ? 'AURUM' : 'Fever';
+      feverLblEl.classList.toggle('hot', game.overdrive);
+      hudCenter.classList.toggle('overdrive', game.overdrive);
+      overdriveVigEl.classList.toggle('active', game.overdrive);
+    }
+
+    function updateNoteReadout(k, voice) {
+      const meta = ELEMENT_META[k.group];
+      elKey.textContent = k.group === 'space' ? 'SPACE' : (k.label || k.code);
+      elSound.textContent = voice ? voice.label : meta.name;
+      elSound.style.color = meta.css;
+      elOrb.style.background = meta.css;
+      elOrb.style.boxShadow = `0 0 12px ${meta.css}`;
+      pulseEqualizer(meta.css);
+    }
+
+    // Score & Combo processing on key hit!
+    function processGameplayHit(k, voice) {
+      const meta = ELEMENT_META[k.group];
+      updateNoteReadout(k, voice);
+
+      // Zen Mode: rewarding free-jam flow scoring (zero errors!)
+      if (game.mode === 'zen') {
+        game.combo++;
+        const pts = 100 * getMult();
+        addScore(pts);
+        boostFever(9);
+        popCombo();
+        spawnFloatPopup(k.switchWorldPos, `♪ ${voice.label}`, `+${pts}`, meta.css);
+        updateHUD();
+        return 'zen';
+      }
+
+      // Melody Rush / Word Forge: Check if player hit the glowing target key!
+      game.attempts++;
+      if (k === game.currentTargetKey) {
+        game.hits++;
+        game.combo++;
+        popCombo();
+
+        // Check rhythm timing ring phase in Melody Rush!
+        const elapsed = clock.getElapsedTime() - game.targetStartTime;
+        const cycle = (elapsed % game.targetBeatWindow) / game.targetBeatWindow;
+        let grade = 'great', gradeTxt = 'GREAT!', basePts = 180, gradeCss = '#22d3ee';
+        if (game.mode === 'melody') {
+          if (cycle >= 0.36 && cycle <= 0.82) {
+            grade = 'perfect'; gradeTxt = 'PERFECT!'; basePts = 300; gradeCss = '#fae09e';
+          }
+        } else {
+          // Word Forge rewards brisk clean typing
+          if (elapsed < 1.1) {
+            grade = 'perfect'; gradeTxt = 'SHARP!'; basePts = 250; gradeCss = '#fae09e';
+          }
+        }
+
+        const totalPts = basePts * getMult();
+        addScore(totalPts);
+        boostFever(grade === 'perfect' ? 20 : 12);
+        spawnFloatPopup(k.switchWorldPos, `${gradeTxt} +${totalPts}`, `♪ ${voice.label}`, gradeCss);
+
+        // Advance sequence!
+        game.seqPos++;
+        if (game.seqPos >= game.seqCodes.length) {
+          // Sequence / Word Completed Bonus!
+          const clearBonus = 600 * getMult();
+          addScore(clearBonus);
+          SoundEngine.playFanfare();
+          if (game.mode === 'word') {
+            game.wordsCleared++;
+            const secs = Math.max(0.5, clock.getElapsedTime() - game.wordStartTime);
+            const chars = game.seqCodes.length;
+            game.wpm = Math.round((chars / 5) / (secs / 60));
+            spawnFloatPopup(new THREE.Vector3(0, 5.5, 4), `WORD CLEAR! +${clearBonus}`, `${game.wpm} WPM`, '#fae09e');
+            loadWord(game.wordIdx + 1);
+          } else {
+            const doneName = MELODIES[game.melodyIdx].name;
+            spawnFloatPopup(new THREE.Vector3(0, 5.5, 4), `MELODY CLEAR! +${clearBonus}`, doneName, '#fae09e');
+            loadMelody(game.melodyIdx + 1);
+          }
+        } else {
+          activateCurrentSequenceTarget();
+        }
+        updateHUD();
+        return grade;
+      } else {
+        // Off-target tap: gentle combo reset + soft visual nudge (NO harsh game over!)
+        game.combo = 0;
+        game.fever = Math.max(0, game.fever - 10);
+        SoundEngine.playSoftError();
+        hudCenter.classList.remove('shake'); void hudCenter.offsetWidth; hudCenter.classList.add('shake');
+        spawnFloatPopup(k.switchWorldPos, `♪ ${voice.label}`, 'FOLLOW GOLD KEY', '#fb7185');
+        renderGameRibbon();
+        updateHUD();
+        return 'off';
+      }
+    }
+
+    function popCombo() {
+      comboRowEl.classList.remove('pop'); void comboRowEl.offsetWidth; comboRowEl.classList.add('pop');
+      setTimeout(() => comboRowEl.classList.remove('pop'), 150);
+    }
+
+    function boostFever(amount) {
+      if (!game.overdrive) {
+        game.fever = Math.min(100, game.fever + amount);
+        if (game.fever >= 100) {
+          game.overdrive = true;
+          game.overdriveLeft = 8.0;
+          SoundEngine.playFanfare();
+          spawnFloatPopup(new THREE.Vector3(0, 7.2, 2), 'AURUM OVERDRIVE ×2!', 'PRISMATIC GOLD BOOST', '#fae09e');
+        }
+      } else {
+        game.overdriveLeft = Math.min(8.5, game.overdriveLeft + 0.45);
+      }
+    }
+
+    const COL_CYAN = new THREE.Color(0x0ea5e9), COL_GOLD = new THREE.Color(0xf59e0b);
+    const _ringCol = new THREE.Color();
+
+    function updateGameplayVisuals(dt, elapsed) {
+      if (game.overdrive) {
+        game.overdriveLeft -= dt;
+        if (game.overdriveLeft <= 0) {
+          game.overdrive = false; game.overdriveLeft = 0; game.fever = 0;
+        }
+        updateHUD();
+      }
+
+      const k = game.currentTargetKey;
+      if (!k || game.mode === 'zen') return;
+
+      // Repeating silky shrinking rhythm ring (Cyan -> Molten Gold sweet spot!)
+      const p = ((elapsed - game.targetStartTime) % game.targetBeatWindow) / game.targetBeatWindow;
+      const inGold = (game.mode === 'word') || (p >= 0.36 && p <= 0.82);
+
+      if (inGold) {
+        _ringCol.copy(COL_GOLD);
+        k.targetColorHex = 0xf59e0b;
+      } else {
+        _ringCol.copy(COL_CYAN).lerp(COL_GOLD, THREE.MathUtils.clamp((p - 0.20) / 0.16, 0, 1));
+        k.targetColorHex = _ringCol.getHex();
+      }
+
+      const pulse = 0.78 + 0.22 * Math.sin(elapsed * 12);
+      k.targetGlow = inGold ? 1.0 : 0.76 * pulse;
+      casesDirty = true;
+
+      // Case shrinking timing ring (if keycap is still stored in its glass case)
+      if (k.state === 'stored' && targetCaseAnchor.visible) {
+        targetCaseAnchor.position.set(k.rackX, k.caseLiftY + CASE_H + 0.16, k.rackZ);
+        targetLockRing.scale.set(k.caseW * 1.04, 1, k.caseD * 1.04);
+        targetLockRing.material.color.setHex(inGold ? 0xfef08a : 0xf59e0b);
+        targetLockRing.material.opacity = inGold ? 0.96 : 0.48;
+
+        const shrink = game.mode === 'melody' ? THREE.MathUtils.lerp(1.85, 0.96, p) : (1.16 + 0.12 * Math.sin(elapsed * 8));
+        targetApproachRing.scale.set(k.caseW * shrink, 1, k.caseD * shrink);
+        targetApproachRing.material.color.copy(_ringCol);
+        targetApproachRing.material.opacity = inGold ? 1.0 : 0.88;
+      }
+
+      // Keyboard switch beam & pulsing reticle
+      targetDeckAnchor.position.set(k.plateX, PLATE_Y + 0.08, k.plateZ);
+      targetBeam.material.color.copy(_ringCol);
+      targetBeam.material.opacity = (inGold ? 0.54 : 0.36) * pulse;
+      targetBeam.scale.set(1, 0.88 + 0.18 * pulse, 1);
+
+      const dScale = game.mode === 'melody' ? THREE.MathUtils.lerp(1.65, 0.94, p) : (1.05 + 0.14 * Math.sin(elapsed * 8));
+      targetDeckRing.scale.set(dScale, 1, dScale);
+      targetDeckRing.material.color.copy(_ringCol);
+
+      if (targetArcLine.visible) {
+        targetArcLine.material.color.copy(_ringCol);
+        targetArcLine.material.opacity = inGold ? 0.62 : 0.34;
+      }
+    }
+
+    function triggerKeyElementEffect(k, isLanding = false, grade = null) {
+      const now = clock.getElapsedTime();
+      const meta = ELEMENT_META[k.group];
+
+      chassisAccent.targetColor.setHex(grade === 'perfect' ? 0xf59e0b : meta.hex);
+      chassisAccent.boost = 1.0;
+
+      if (isLanding || grade === 'perfect') {
+        const sparkHex = grade === 'perfect' ? 0xfbbf24 : meta.hex;
+        emitSparks(k.switchWorldPos, sparkHex, grade === 'perfect' ? 32 : 22, null, grade === 'perfect' ? 1.2 : 1.05);
+        emitSparks(k.switchWorldPos, 0xf9dc94, 10, null, 0.85, true);
+      }
+      if (grade === 'perfect') {
+        spawnExpandingRing(k.plateX, k.plateZ, 0xfbbf24, 6.2, 0.56, false);
+      }
+
+      if (k.group === 'alpha') {
+        activeWaves.push({ type: 'alpha', ox: k.plateX, oz: k.plateZ, start: now, dur: 1.05, hueBase: (k.index * 0.085) % 1.0 });
+        spawnExpandingRing(k.plateX, k.plateZ, meta.hex, 5.0, 0.55, false);
+        if (!isLanding) emitSparks(k.switchWorldPos, meta.hex, 14, null, 0.80, true);
+      } else if (k.group === 'number') {
+        spawnExpandingRing(k.plateX, k.plateZ, 0x38bdf8, 7.6, 0.62, false, 0);
+        spawnExpandingRing(k.plateX, k.plateZ, 0xeab64d, 5.2, 0.56, false, 0.08);
+        activeWaves.push({ type: 'number', ox: k.plateX, oz: k.plateZ, start: now, dur: 0.80 });
+      } else if (k.group === 'fn') {
+        spawnLightPillar(k.plateX, k.plateZ, 0xc084fc, 0.95);
+        activeWaves.push({ type: 'fn', ox: k.plateX, oz: k.plateZ, start: now, dur: 0.95 });
+      } else if (k.group === 'arrow') {
+        const [dx, dz] = k.dir || [0, -1];
+        const worldDir = new THREE.Vector3(dx, 0, dz).applyQuaternion(deckWorldQuat).normalize();
+        emitSparks(k.switchWorldPos, 0x10b981, 22, worldDir, 1.15);
+        emitSparks(k.switchWorldPos, 0x22d3ee, 10, worldDir, 0.90);
+        activeWaves.push({ type: 'arrow', ox: k.plateX, oz: k.plateZ, dx, dz, start: now, dur: 0.84 });
+      } else if (k.group === 'space') {
+        activeWaves.push({ type: 'space', ox: k.plateX, oz: k.plateZ, start: now, dur: 1.08 });
+        spawnExpandingRing(k.plateX, k.plateZ, 0xeab64d, 9.5, 0.72, false);
+        gsap.killTweensOf(spaceBarMesh.scale); gsap.killTweensOf(spaceBarMesh.material);
+        spaceBarMesh.visible = true; spaceBarMesh.scale.set(0.14, 1, 1); spaceBarMesh.material.opacity = 0.92;
+        gsap.to(spaceBarMesh.scale, { x: 1.24, duration: 0.58, ease: 'power2.out' });
+        gsap.to(spaceBarMesh.material, { opacity: 0, duration: 0.70, ease: 'power2.out', onComplete: () => { spaceBarMesh.visible = false; } });
+      } else if (k.group === 'enter') {
+        activeWaves.push({ type: 'enter', ox: k.plateX, oz: k.plateZ, start: now, dur: 0.72 });
+        spawnLightPillar(k.plateX, k.plateZ, 0xfbbf24, 1.35);
+        spawnExpandingRing(k.plateX, k.plateZ, 0xfb923c, 6.8, 0.55, false);
+        fxPointLight.color.setHex(0xfbbf24);
+        fxPointLight.position.copy(k.switchWorldPos).addScaledVector(deckUpWorld, 2.4);
+        gsap.killTweensOf(fxPointLight); fxPointLight.intensity = 4.0;
+        gsap.to(fxPointLight, { intensity: 0, duration: 0.48, ease: 'power3.out' });
+      } else if (k.group === 'esc') {
+        activeWaves.push({ type: 'esc', ox: k.plateX, oz: k.plateZ, start: now, dur: 1.15 });
+        spawnExpandingRing(k.plateX, k.plateZ, 0xfb7185, 8.8, 0.70, false);
+        fxPointLight.color.setHex(0xfb7185);
+        fxPointLight.position.copy(k.switchWorldPos).addScaledVector(deckUpWorld, 2.6);
+        gsap.killTweensOf(fxPointLight); fxPointLight.intensity = 3.2;
+        gsap.to(fxPointLight, { intensity: 0, duration: 0.55, ease: 'power2.out' });
+      } else if (k.group === 'nav') {
+        spawnExpandingRing(k.plateX, k.plateZ, 0x2dd4bf, 6.0, 0.58, true);
+        activeWaves.push({ type: 'mod', ox: k.plateX, oz: k.plateZ, start: now, dur: 0.72, colorHex: 0x2dd4bf });
+      } else {
+        spawnExpandingRing(k.plateX, k.plateZ, meta.hex, 5.0, 0.52, false);
+        activeWaves.push({ type: 'mod', ox: k.plateX, oz: k.plateZ, start: now, dur: 0.70, colorHex: meta.hex });
+      }
+    }
+
+    // =========================================================================
+    // 12. SWITCH RGB LEDS & DUAL PERIMETER UNDERGLOW
+    // =========================================================================
+    const _ledCol = new THREE.Color(), _waveCol = new THREE.Color(), _goldIdle = new THREE.Color(0xeab64d);
+
+    function updateSwitchLEDs(elapsed, dt) {
+      for (let w = activeWaves.length - 1; w >= 0; w--) {
+        if (elapsed - activeWaves[w].start > activeWaves[w].dur) activeWaves.splice(w, 1);
+      }
+
+      if (game.overdrive) {
+        chassisAccent.color.setHSL((elapsed * 0.25) % 1, 0.92, 0.60);
+        chassisAccent.boost = 1.0;
+      } else {
+        chassisAccent.boost = Math.max(0, chassisAccent.boost - dt * 0.85);
+        chassisAccent.targetColor.lerp(_goldIdle, dt * 0.65);
+        chassisAccent.color.lerp(chassisAccent.targetColor, Math.min(1, dt * 8));
+      }
+
+      if (underglowStripMat && deskHaloMat) {
+        underglowStripMat.color.copy(chassisAccent.color);
+        underglowStripMat.opacity = 0.74 + chassisAccent.boost * 0.24;
+        deskHaloMat.color.copy(chassisAccent.color);
+        deskHaloMat.opacity = 0.28 + chassisAccent.boost * 0.22;
+      }
+      if (rackGlowStripMat) {
+        rackGlowStripMat.color.copy(chassisAccent.color);
+        rackGlowStripMat.opacity = 0.58 + chassisAccent.boost * 0.34;
+      }
+
+      for (let i = 0; i < KEY_COUNT; i++) {
+        const k = KEYS[i];
+        if (game.overdrive) {
+          _ledCol.setHSL((elapsed * 0.30 + k.plateX * 0.03 - k.plateZ * 0.03) % 1, 0.92, k.state === 'installed' ? 0.55 : 0.34);
+        } else {
+          const breath = 0.5 + 0.5 * Math.sin(elapsed * 1.45 + k.plateX * 0.16 - k.plateZ * 0.22);
+          if (k.state === 'installed') _ledCol.setRGB(0.36 + breath * 0.22, 0.25 + breath * 0.16, 0.08 + breath * 0.07);
+          else _ledCol.setRGB(0.20 + breath * 0.12, 0.14 + breath * 0.08, 0.04 + breath * 0.04);
+        }
+
+        if (game.currentTargetKey === k) {
+          _waveCol.setHex(k.targetColorHex);
+          _ledCol.lerp(_waveCol, 0.95);
+        }
+        if (hoveredKey === k) {
+          _waveCol.setHex(ELEMENT_META[k.group].hex);
+          _ledCol.lerp(_waveCol, 0.90);
+        }
+
+        for (let w = 0; w < activeWaves.length; w++) {
+          const ev = activeWaves[w], p = (elapsed - ev.start) / ev.dur, fade = 1 - p;
+          const dx = k.plateX - ev.ox, dz = k.plateZ - ev.oz, dist = Math.hypot(dx, dz);
+          if (ev.type === 'alpha') {
+            const ring = Math.exp(-Math.pow((dist - p * 14.5) / 2.3, 2)) * fade;
+            if (ring > 0.02) { _waveCol.setHSL((ev.hueBase + dist * 0.04 + p * 0.30) % 1, 0.96, 0.58); _ledCol.r += _waveCol.r*ring*1.55; _ledCol.g += _waveCol.g*ring*1.55; _ledCol.b += _waveCol.b*ring*1.55; }
+          } else if (ev.type === 'number') {
+            const r1 = Math.exp(-Math.pow((dist - p * 16.0) / 1.4, 2)) * fade;
+            const r2 = Math.exp(-Math.pow((dist - Math.max(0, p - 0.12) * 12.5) / 1.4, 2)) * fade;
+            if (r1 > 0.02) { _ledCol.r += 0.22*r1*1.85; _ledCol.g += 0.80*r1*1.85; _ledCol.b += 1.00*r1*1.85; }
+            if (r2 > 0.02) { _ledCol.r += 1.00*r2*1.45; _ledCol.g += 0.74*r2*1.45; _ledCol.b += 0.22*r2*1.45; }
+          } else if (ev.type === 'fn') {
+            const rf = k.row === 0 ? 1.0 : k.row === 1 ? 0.36 : 0;
+            if (rf > 0) {
+              const amt = Math.exp(-Math.pow((Math.abs(dx) - p * 26) / 3.8, 2)) * fade * rf * 1.6 + Math.exp(-dist * 0.28) * Math.pow(Math.max(0, fade), 2) * 1.3;
+              _ledCol.r += 0.78*amt; _ledCol.g += 0.48*amt; _ledCol.b += 1.00*amt;
+            }
+          } else if (ev.type === 'arrow') {
+            const proj = dx * ev.dx + dz * ev.dz, perp = Math.abs(dx * -ev.dz + dz * ev.dx), head = p * 30;
+            if (proj >= -1.5 && proj <= head + 2.5) {
+              const tr = Math.exp(-Math.pow((head - proj) / 5.0, 2)) * Math.exp(-perp * 0.28) * fade;
+              _ledCol.r += 0.10*tr*2.0; _ledCol.g += 0.96*tr*2.0; _ledCol.b += 0.62*tr*2.0;
+            }
+          } else if (ev.type === 'space') {
+            const rf = k.row === 5 ? 1.0 : k.row === 4 ? 0.50 : k.row === 3 ? 0.22 : 0.08;
+            const wave = Math.exp(-Math.pow((Math.abs(dx) - p * 26) / 4.2, 2)) * fade * rf;
+            if (wave > 0.02) { _waveCol.setHSL((0.12 + p * 0.55 + Math.abs(dx) * 0.015) % 1, 0.94, 0.58); _ledCol.r += _waveCol.r*wave*1.85; _ledCol.g += _waveCol.g*wave*1.85; _ledCol.b += _waveCol.b*wave*1.85; }
+          } else if (ev.type === 'enter') {
+            const b = Math.exp(-dist * 0.22) * Math.pow(Math.max(0, fade), 1.35);
+            _ledCol.r += 1.00*b*2.1; _ledCol.g += 0.68*b*2.1; _ledCol.b += 0.16*b*2.1;
+          } else if (ev.type === 'esc') {
+            const ring = Math.exp(-Math.pow((dist - p * 36) / 3.8, 2)) * fade;
+            _ledCol.r += 1.00*ring*1.9; _ledCol.g += 0.26*ring*1.9; _ledCol.b += 0.34*ring*1.9;
+          } else {
+            const ring = Math.exp(-Math.pow((dist - p * 10.0) / 2.2, 2)) * fade;
+            if (ring > 0.02) { _waveCol.setHex(ev.colorHex || 0xf43f5e); _ledCol.r += _waveCol.r*ring*1.55; _ledCol.g += _waveCol.g*ring*1.55; _ledCol.b += _waveCol.b*ring*1.55; }
+          }
+        }
+
+        _ledCol.r = Math.min(1, _ledCol.r); _ledCol.g = Math.min(1, _ledCol.g); _ledCol.b = Math.min(1, _ledCol.b);
+        swLedInst.setColorAt(i, _ledCol); swGlowInst.setColorAt(i, _ledCol);
+      }
+      swLedInst.instanceColor.needsUpdate = true; swGlowInst.instanceColor.needsUpdate = true;
+    }
+
+    // =========================================================================
+    // 13. MANUAL ORBIT CONTROLS
+    // =========================================================================
+    const DEFAULT_ORBIT = { theta: 0.03, phi: 0.99, radius: 55, target: new THREE.Vector3(0, 4.7, 0.6) };
+    const orbit = {
+      theta: DEFAULT_ORBIT.theta, phi: DEFAULT_ORBIT.phi, radius: DEFAULT_ORBIT.radius, target: DEFAULT_ORBIT.target.clone(),
+      curTheta: DEFAULT_ORBIT.theta, curPhi: DEFAULT_ORBIT.phi, curRadius: DEFAULT_ORBIT.radius, curTarget: DEFAULT_ORBIT.target.clone(),
+      nudge: new THREE.Vector3(), isDragging: false, isPanning: false, lastX: 0, lastY: 0, movedDist: 0, pinchDist: 0
+    };
+
+    function updateResponsiveDistance() {
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      orbit.radius = aspect < 1.35 ? THREE.MathUtils.clamp(55 * (1.35 / aspect), 55, 88) : DEFAULT_ORBIT.radius;
+    }
+    updateResponsiveDistance(); orbit.curRadius = orbit.radius;
+
+    function resetCameraView() {
+      orbit.theta = DEFAULT_ORBIT.theta; orbit.phi = DEFAULT_ORBIT.phi; updateResponsiveDistance(); orbit.target.copy(DEFAULT_ORBIT.target);
+    }
+
+    function triggerCameraNudge(targetWorldPos) {
+      const dx = (targetWorldPos.x - orbit.target.x) * 0.07, dy = (targetWorldPos.y - orbit.target.y) * 0.04, dz = (targetWorldPos.z - orbit.target.z) * 0.055;
+      gsap.killTweensOf(orbit.nudge);
+      gsap.timeline()
+        .to(orbit.nudge, { x: dx, y: dy, z: dz, duration: 0.34, ease: 'power2.out' })
+        .to(orbit.nudge, { x: 0, y: 0, z: 0, duration: 0.72, ease: 'power2.inOut' }, '+=0.08');
+    }
+
+    function updateCamera() {
+      const damp = 0.11;
+      orbit.curTheta += (orbit.theta - orbit.curTheta) * damp;
+      orbit.curPhi += (orbit.phi - orbit.curPhi) * damp;
+      orbit.curRadius += (orbit.radius - orbit.curRadius) * damp;
+      orbit.curTarget.lerp(orbit.target, damp);
+
+      const tx = orbit.curTarget.x + orbit.nudge.x, ty = orbit.curTarget.y + orbit.nudge.y, tz = orbit.curTarget.z + orbit.nudge.z;
+      const sinPhi = Math.sin(orbit.curPhi);
+      camera.position.set(tx + orbit.curRadius * sinPhi * Math.sin(orbit.curTheta), ty + orbit.curRadius * Math.cos(orbit.curPhi), tz + orbit.curRadius * sinPhi * Math.cos(orbit.curTheta));
+      camera.lookAt(tx, ty, tz);
+    }
+
+    // =========================================================================
+    // 14. INSTALL, PRESS, ASSEMBLE SYMPHONY & REVERSE-ORDER RESET
+    // =========================================================================
+    function acquireAnimMesh(k) {
+      if (!k.animMesh) { k.animMesh = createAnimatingKeyMesh(k); animKeyGroup.add(k.animMesh); }
+      keycapsDirty = true;
+      return k.animMesh;
+    }
+    function releaseAnimMesh(k) {
+      if (k.animMesh) {
+        animKeyGroup.remove(k.animMesh);
+        k.animMesh.traverse(obj => { if (obj.geometry && obj.geometry !== keycapBaseGeo) obj.geometry.dispose(); if (obj.material) obj.material.dispose(); });
+        k.animMesh = null;
+      }
+      keycapsDirty = true;
+    }
+
+    function installKey(k, silentCascade = false) {
+      if (k.state !== 'stored') return;
+      if (k.code === 'Escape' && installedOrder.length > 0 && !silentCascade) { resetAllKeys(); return; }
+
+      if (k.introTl) { k.introTl.kill(); k.introTl = null; }
+      if (k.activeTl) { k.activeTl.kill(); k.activeTl = null; }
+
+      // Immediate musical & gameplay feedback on click/keypress!
+      const voice = SoundEngine.playKeyMusic(k, silentCascade ? 0.42 : 1.0, false);
+      let grade = null;
+      if (!silentCascade) grade = processGameplayHit(k, voice);
+
+      k.state = 'installing';
+      k.caseHover = 0;
+      k.targetGlow = 0;
+      if (!installedOrder.includes(k)) installedOrder.push(k);
+      casesDirty = true;
+      updateHUD();
+
+      if (!silentCascade) SoundEngine.playCaseTick();
+      toggleIndicator(k.code);
+
+      const mesh = acquireAnimMesh(k);
+      const startPos = getStoredKeyWorldPos(k, new THREE.Vector3());
+      const endPos = getInstalledKeyWorldPos(k, new THREE.Vector3(), 0);
+      const pressedPos = getInstalledKeyWorldPos(k, new THREE.Vector3(), KEY_TRAVEL);
+      mesh.position.copy(startPos); mesh.quaternion.copy(rackWorldQuat);
+
+      const liftedPos = startPos.clone().addScaledVector(rackUpWorld, 2.35);
+      const preLandPos = endPos.clone().addScaledVector(deckUpWorld, 2.1);
+      const mid1 = startPos.clone().lerp(endPos, 0.32); mid1.y = Math.max(liftedPos.y, endPos.y) + 4.2; mid1.x += (k.plateX > 0 ? 1 : -1) * 0.7;
+      const mid2 = startPos.clone().lerp(endPos, 0.72); mid2.y = Math.max(liftedPos.y * 0.65, endPos.y + 4.5);
+
+      const curve = new THREE.CatmullRomCurve3([liftedPos, mid1, mid2, preLandPos]);
+      const startQuat = rackWorldQuat.clone();
+      const midFlourishQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.18, (k.plateX < 0 ? 0.14 : -0.14), (k.plateX < 0 ? -0.12 : 0.12)));
+      const tmpQuat = new THREE.Quaternion();
+      const flightProxy = { t: 0 };
+      const trailColor = grade === 'perfect' ? 0xfbbf24 : ELEMENT_META[k.group].hex;
+      let lastTrailT = 0;
+
+      if (!silentCascade) triggerCameraNudge(endPos);
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          k.state = 'installed'; k.pressY = 0; k.activeTl = null;
+          releaseAnimMesh(k); updateHUD();
+        }
+      });
+      k.activeTl = tl;
+
+      tl.to(k, { lidAngle: LID_OPEN_ANGLE, caseLiftY: 0, duration: 0.20, ease: 'power2.out', onUpdate: () => { casesDirty = true; } }, 0);
+      tl.to(mesh.position, { x: liftedPos.x, y: liftedPos.y, z: liftedPos.z, duration: 0.22, ease: 'back.out(2.0)' }, 0.05);
+      tl.to(k, { lidAngle: 0, duration: 0.38, ease: 'power2.inOut', onUpdate: () => { casesDirty = true; } }, 0.28);
+      tl.to(flightProxy, {
+        t: 1, duration: 0.42, ease: 'power2.inOut',
+        onUpdate: () => {
+          curve.getPoint(flightProxy.t, mesh.position);
+          tmpQuat.copy(startQuat).slerp(deckWorldQuat, flightProxy.t);
+          mesh.quaternion.copy(tmpQuat).slerp(tmpQuat.clone().multiply(midFlourishQuat), Math.sin(flightProxy.t * Math.PI) * 0.45);
+          if (flightProxy.t - lastTrailT > 0.11) { lastTrailT = flightProxy.t; emitSparks(mesh.position, trailColor, 2, null, 0.34); }
+        }
+      }, 0.24);
+      tl.to(mesh.position, {
+        x: pressedPos.x, y: pressedPos.y, z: pressedPos.z, duration: 0.07, ease: 'power3.in',
+        onComplete: () => {
+          mesh.quaternion.copy(deckWorldQuat);
+          triggerKeyElementEffect(k, true, grade);
+        }
+      }, 0.66);
+      tl.to(mesh.position, { x: endPos.x, y: endPos.y, z: endPos.z, duration: 0.085, ease: 'back.out(2.2)' }, 0.73);
+    }
+
+    function pressInstalledKey(k) {
+      if (k.state !== 'installed') return;
+      if (k.code === 'Escape') {
+        SoundEngine.playKeyMusic(k, 1.0, false);
+        triggerKeyElementEffect(k, false);
+        resetAllKeys();
+        return;
+      }
+
+      if (k.pressTl) { k.pressTl.kill(); k.pressTl = null; }
+      toggleIndicator(k.code);
+      const voice = SoundEngine.playKeyMusic(k, 1.0, false);
+      const grade = processGameplayHit(k, voice);
+      triggerKeyElementEffect(k, false, grade);
+
+      const mesh = acquireAnimMesh(k);
+      const restPos = getInstalledKeyWorldPos(k, new THREE.Vector3(), 0);
+      const downPos = getInstalledKeyWorldPos(k, new THREE.Vector3(), KEY_TRAVEL);
+      mesh.position.copy(restPos); mesh.quaternion.copy(deckWorldQuat);
+
+      const tl = gsap.timeline({
+        onComplete: () => { k.pressTl = null; if (k.state === 'installed') releaseAnimMesh(k); }
+      });
+      k.pressTl = tl;
+      tl.to(mesh.position, { x: downPos.x, y: downPos.y, z: downPos.z, duration: 0.045, ease: 'power2.out' })
+        .to(mesh.position, { x: restPos.x, y: restPos.y, z: restPos.z, duration: 0.075, ease: 'power2.inOut' });
+    }
+
+    let cascadeTimers = [];
+    function cancelCascade() { cascadeTimers.forEach(id => clearTimeout(id)); cascadeTimers.length = 0; }
+
+    function assembleAllCascade() {
+      cancelCascade();
+      const remaining = KEYS.filter(k => k.state === 'stored');
+      if (remaining.length === 0) return;
+      showToast(`Assembling ${remaining.length} keys in musical cascade…`);
+      remaining.forEach((k, idx) => {
+        cascadeTimers.push(setTimeout(() => { if (k.state === 'stored') installKey(k, true); }, idx * 34));
+      });
+    }
+
+    function resetAllKeys() {
+      cancelCascade();
+      const toReturn = installedOrder.slice().reverse().filter(k => k.state === 'installed' || k.state === 'installing');
+      if (toReturn.length === 0) return;
+
+      installedOrder.length = 0;
+      showToast(`Returning ${toReturn.length} key${toReturn.length > 1 ? 's' : ''} to cases…`);
+      triggerKeyElementEffect(KEYS[0], false);
+
+      const stagger = Math.min(0.032, 1.20 / Math.max(1, toReturn.length));
+      toReturn.forEach((k, idx) => {
+        if (k.activeTl) { k.activeTl.kill(); k.activeTl = null; }
+        if (k.pressTl) { k.pressTl.kill(); k.pressTl = null; }
+        k.state = 'returning';
+        const mesh = acquireAnimMesh(k);
+        const startPos = mesh.position.lengthSq() > 0.001 && k.animMesh ? mesh.position.clone() : getInstalledKeyWorldPos(k, new THREE.Vector3(), 0);
+        const startQuat = mesh.quaternion.clone();
+        if (startPos.distanceTo(getInstalledKeyWorldPos(k, new THREE.Vector3(), 0)) < 0.5) startQuat.copy(deckWorldQuat);
+
+        const homePos = getStoredKeyWorldPos(k, new THREE.Vector3());
+        const aboveHomePos = homePos.clone().addScaledVector(rackUpWorld, 2.2);
+        const liftOffPos = startPos.clone().addScaledVector(deckUpWorld, 2.8);
+        const midArc = startPos.clone().lerp(aboveHomePos, 0.5); midArc.y += 3.8;
+        const curve = new THREE.CatmullRomCurve3([startPos, liftOffPos, midArc, aboveHomePos]);
+        const proxy = { t: 0 };
+
+        const tl = gsap.timeline({
+          delay: idx * stagger,
+          onStart: () => { if (idx % 3 === 0) SoundEngine.playCaseTick(); },
+          onComplete: () => {
+            k.state = 'stored'; k.activeTl = null; releaseAnimMesh(k); casesDirty = true; updateHUD();
+            if (idx === toReturn.length - 1 && game.mode !== 'zen') activateCurrentSequenceTarget();
+          }
+        });
+        k.activeTl = tl;
+        tl.to(k, { lidAngle: LID_OPEN_ANGLE, duration: 0.22, ease: 'power2.out', onUpdate: () => { casesDirty = true; } }, 0.04);
+        tl.to(proxy, { t: 1, duration: 0.40, ease: 'power2.inOut', onUpdate: () => { curve.getPoint(proxy.t, mesh.position); mesh.quaternion.copy(startQuat).slerp(rackWorldQuat, proxy.t); } }, 0);
+        tl.to(mesh.position, { x: homePos.x, y: homePos.y, z: homePos.z, duration: 0.14, ease: 'power2.out' }, 0.40);
+        tl.to(k, { lidAngle: 0, duration: 0.34, ease: 'power2.inOut', onUpdate: () => { casesDirty = true; } }, 0.52);
+      });
+      casesDirty = true; updateHUD();
+    }
+
+    // =========================================================================
+    // 15. STAGGERED GSAP INTRO + GAME START
+    // =========================================================================
+    function playIntroAnimation() {
+      const byRow = [[], [], [], [], [], []];
+      KEYS.forEach(k => byRow[k.row].push(k));
+      byRow.forEach(arr => arr.sort((a, b) => a.kx - b.kx));
+
+      byRow.forEach((rowKeys, r) => {
+        rowKeys.forEach((k, colIdx) => {
+          const delay = 0.18 + r * 0.14 + colIdx * 0.022;
+          const tl = gsap.timeline({ delay });
+          k.introTl = tl;
+          tl.to(k, { lidAngle: LID_OPEN_ANGLE, duration: 0.36, ease: 'power2.out', onUpdate: () => { casesDirty = true; } })
+            .to(k, {
+              lidAngle: 0, caseLiftY: 0, duration: 0.44, ease: 'power2.inOut',
+              onUpdate: () => { casesDirty = true; keycapsDirty = true; },
+              onComplete: () => { k.introTl = null; }
+            }, '+=0.14');
+        });
+      });
+
+      // Highlight the very first Melody target smoothly right as intro finishes!
+      setTimeout(() => {
+        if (game.mode === 'melody') loadMelody(0);
+      }, 1750);
+    }
+
+    // =========================================================================
+    // 16. UI EVENTS, RAYCASTER, HOVER & PHYSICAL KEYBOARD LISTENER
+    // =========================================================================
+    btnMelody.addEventListener('click', () => setGameMode('melody'));
+    btnWord.addEventListener('click', () => setGameMode('word'));
+    btnZen.addEventListener('click', () => setGameMode('zen'));
+    ribbonNextBtn.addEventListener('click', () => {
+      if (game.mode === 'melody') loadMelody(game.melodyIdx + 1);
+      else if (game.mode === 'word') loadWord(game.wordIdx + 1);
+    });
+    cascadeBtn.addEventListener('click', () => assembleAllCascade());
+    resetBtn.addEventListener('click', () => resetAllKeys());
+    viewBtn.addEventListener('click', () => resetCameraView());
+    soundBtn.addEventListener('click', () => {
+      const isMuted = SoundEngine.toggleMute();
+      soundBtn.textContent = isMuted ? '🔇 Muted' : '🔊 Music';
+      soundBtn.classList.toggle('muted', isMuted);
+    });
+
+    const raycaster = new THREE.Raycaster(), pointerNDC = new THREE.Vector2(-10, -10);
+    let hoveredKey = null;
+
+    function updatePointerNDC(cx, cy) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerNDC.x = ((cx - rect.left) / rect.width) * 2 - 1;
+      pointerNDC.y = -((cy - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function pickKeyUnderPointer() {
+      raycaster.setFromCamera(pointerNDC, camera);
+      const hits = raycaster.intersectObjects([caseHitInst, installedHitInst], false);
+      if (hits.length === 0) return null;
+      const hit = hits[0];
+      if (hit.instanceId === undefined) return null;
+      const k = KEYS[hit.instanceId];
+      if (!k) return null;
+      if (hit.object === caseHitInst && k.state === 'stored') return k;
+      if (hit.object === installedHitInst && k.state === 'installed') return k;
+      return null;
+    }
+
+    function setHoveredKey(k) {
+      if (hoveredKey === k) return;
+      if (hoveredKey) {
+        const prev = hoveredKey;
+        gsap.to(prev, { caseHover: 0, duration: 0.20, ease: 'power2.out', onUpdate: () => { casesDirty = true; } });
+        if (prev.state === 'stored' && !prev.introTl && game.currentTargetKey !== prev) {
+          gsap.to(prev, { caseLiftY: 0, lidAngle: 0, duration: 0.24, ease: 'power2.out', onUpdate: () => { casesDirty = true; keycapsDirty = true; } });
+        }
+      }
+      hoveredKey = k;
+      if (hoveredKey) {
+        document.body.style.cursor = 'pointer';
+        const cur = hoveredKey, meta = ELEMENT_META[cur.group];
+        if (cur.state === 'stored') {
+          gsap.to(cur, { caseHover: 1, duration: 0.14, ease: 'power2.out', onUpdate: () => { casesDirty = true; } });
+          if (!cur.introTl && game.currentTargetKey !== cur) {
+            gsap.to(cur, { caseLiftY: 0.34, lidAngle: -THREE.MathUtils.degToRad(20), duration: 0.20, ease: 'power2.out', onUpdate: () => { casesDirty = true; keycapsDirty = true; } });
+          }
+          hoverSwitchRing.position.set(cur.plateX, PLATE_Y + 0.10, cur.plateZ);
+          hoverSwitchRing.material.color.setHex(meta.hex);
+          hoverSwitchRing.visible = true;
+          gsap.to(hoverSwitchRing.material, { opacity: 0.85, duration: 0.16 });
+          writeArc(hoverArcGeo, cur);
+          hoverArcLine.material.color.setHex(meta.hex);
+          hoverArcLine.visible = true;
+          gsap.to(hoverArcLine.material, { opacity: 0.48, duration: 0.18 });
+        } else {
+          hoverSwitchRing.visible = false; hoverArcLine.visible = false;
+        }
+      } else {
+        document.body.style.cursor = orbit.isDragging ? 'grabbing' : 'default';
+        gsap.to(hoverSwitchRing.material, { opacity: 0, duration: 0.16, onComplete: () => { if (!hoveredKey) hoverSwitchRing.visible = false; } });
+        gsap.to(hoverArcLine.material, { opacity: 0, duration: 0.16, onComplete: () => { if (!hoveredKey) hoverArcLine.visible = false; } });
+      }
+    }
+
+    const domEl = renderer.domElement;
+    domEl.addEventListener('contextmenu', e => e.preventDefault());
+    domEl.addEventListener('pointerdown', e => {
+      orbit.isDragging = true; orbit.isPanning = e.button === 2 || e.button === 1 || e.shiftKey;
+      orbit.lastX = e.clientX; orbit.lastY = e.clientY; orbit.movedDist = 0;
+      domEl.setPointerCapture(e.pointerId);
+    });
+    domEl.addEventListener('pointermove', e => {
+      updatePointerNDC(e.clientX, e.clientY);
+      if (orbit.isDragging) {
+        const dx = e.clientX - orbit.lastX, dy = e.clientY - orbit.lastY;
+        orbit.lastX = e.clientX; orbit.lastY = e.clientY; orbit.movedDist += Math.hypot(dx, dy);
+        if (orbit.movedDist > 4) {
+          document.body.style.cursor = 'grabbing';
+          if (orbit.isPanning) {
+            const panScale = orbit.radius * 0.0014;
+            const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0);
+            const up = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+            orbit.target.addScaledVector(right, -dx * panScale).addScaledVector(up, dy * panScale);
+            orbit.target.x = THREE.MathUtils.clamp(orbit.target.x, -22, 22);
+            orbit.target.y = THREE.MathUtils.clamp(orbit.target.y, 0.5, 16);
+            orbit.target.z = THREE.MathUtils.clamp(orbit.target.z, -16, 16);
+          } else {
+            orbit.theta -= dx * 0.0062;
+            orbit.phi = THREE.MathUtils.clamp(orbit.phi - dy * 0.0058, 0.20, Math.PI * 0.475);
+          }
+        }
+      } else {
+        setHoveredKey(pickKeyUnderPointer());
+      }
+    });
+    domEl.addEventListener('pointerup', e => {
+      const wasClick = orbit.isDragging && orbit.movedDist < 6 && e.button === 0;
+      orbit.isDragging = false; orbit.isPanning = false;
+      if (domEl.hasPointerCapture(e.pointerId)) domEl.releasePointerCapture(e.pointerId);
+      if (wasClick) {
+        updatePointerNDC(e.clientX, e.clientY);
+        const clicked = pickKeyUnderPointer();
+        if (clicked) {
+          if (clicked.state === 'stored') installKey(clicked);
+          else if (clicked.state === 'installed') pressInstalledKey(clicked);
+        }
+      }
+      setHoveredKey(pickKeyUnderPointer());
+    });
+    domEl.addEventListener('wheel', e => {
+      e.preventDefault();
+      orbit.radius = THREE.MathUtils.clamp(orbit.radius * (1 + Math.sign(e.deltaY) * 0.075), 16, 92);
+    }, { passive: false });
+    domEl.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        orbit.isDragging = false;
+        orbit.pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      }
+    }, { passive: true });
+    domEl.addEventListener('touchmove', e => {
+      if (e.touches.length === 2) {
+        const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        if (orbit.pinchDist > 0) orbit.radius = THREE.MathUtils.clamp(orbit.radius * (orbit.pinchDist / d), 16, 92);
+        orbit.pinchDist = d;
+      }
+    }, { passive: true });
+
+    const preventCodes = new Set(['Space','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Backspace','AltLeft','AltRight','ContextMenu','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']);
+    window.addEventListener('keydown', e => {
+      if (e.repeat) return;
+      const k = KEY_BY_CODE.get(e.code);
+      if (!k) return;
+      if (preventCodes.has(e.code)) e.preventDefault();
+      if (e.code === 'Escape' && installedOrder.length > 0) { resetAllKeys(); return; }
+      if (k.state === 'stored') installKey(k);
+      else if (k.state === 'installed') pressInstalledKey(k);
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // =========================================================================
+    // 17. MAIN LOOP & STARTUP
+    // =========================================================================
+    updateHUD();
+    renderGameRibbon();
+    playIntroAnimation();
+
+    let prevTime = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      const dt = Math.min(0.05, elapsed - prevTime);
+      prevTime = elapsed;
+
+      motePoints.rotation.y = elapsed * 0.014;
+      motePoints.position.y = Math.sin(elapsed * 0.4) * 0.35;
+      if (hoverSwitchRing.visible) {
+        const s = 1.0 + 0.10 * Math.sin(elapsed * 8);
+        hoverSwitchRing.scale.set(s, 1, s);
+      }
+
+      updateGameplayVisuals(dt, elapsed);
+      flushInstanceUpdates();
+      updateSwitchLEDs(elapsed, dt);
+      updateSparks(dt);
+      updateCamera();
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  })();
+  </script>
+</body>
+</html>
