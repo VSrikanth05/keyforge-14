@@ -2,6 +2,20 @@
 
 An interactive, single-file 3D mechanical keyboard & musical rhythm/typing game built in **Three.js**, **GSAP**, and the **Web Audio API**, modeled after the compact **HP Pavilion 14 series (84-key)** layout in a luxury **Obsidian Black & 24K Brushed Gold** dark-mode finish.
 
+<p align="center">
+  <a href="https://vsrikanth05.github.io/keyforge-14/">
+    <img src="./assets/keyforge-14-demo.webp" alt="KEYFORGE 14 — Live 25-Second 3D Gameplay Showcase" width="100%" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://vsrikanth05.github.io/keyforge-14/"><strong>▶ Play Live 3D Game</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://vsrikanth05.github.io/keyforge-14/watch.html"><strong>🔊 Watch Full 1080p 60 FPS Video (with Audio)</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/VSrikanth05/keyforge-14/releases/download/v1.0.0/keyforge-14-showcase-1080p60.mp4"><strong>⬇ Download MP4</strong></a>
+</p>
+
 ---
 
 ## Highlights & Gameplay Modes
